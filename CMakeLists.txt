@@ -1,6 +1,21 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(aes_bruteforce LANGUAGES CXX CUDA)
+project(aes_bruteforce LANGUAGES CXX)
+
+# ── CUDA availability check ─────────────────────────────────────────────────
+include(CheckLanguage)
+check_language(CUDA)
+if(CMAKE_CUDA_COMPILER)
+    enable_language(CUDA)
+else()
+    message(FATAL_ERROR
+        "CUDA compiler (nvcc) not found.\n"
+        "Install CUDA Toolkit and ensure nvcc is in PATH:\n"
+        "  export PATH=/usr/local/cuda/bin:\$PATH\n"
+        "Or specify it explicitly:\n"
+        "  cmake -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc ..."
+    )
+endif()
 
 # ── Standards ──────────────────────────────────────────────────────────────────
 set(CMAKE_CXX_STANDARD   17)
