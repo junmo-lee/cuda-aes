@@ -422,3 +422,98 @@ while attempting to start process rank 0.
   - 유의사항 — 보안/법적 사항, 기술적 제약(노드 장애 처리 미구현 등), root 실행, 아키텍처 불일치 오류 대응
 
 ✻ Crunched for 1m 14s          
+================================================================================
+SESSION: 2026-03-16 — 비트슬라이스 AES-128 브루트포스 커널 추가
+================================================================================
+
+## 작업 개요
+
+`BitSlice_AES_CUDA_REF/` 레퍼런스 코드를 분석하고, 비트슬라이싱 기법을 활용한
+AES-128 브루트포스 CUDA 커널을 새로 구현했습니다.
+
+## 분석한 레퍼런스 구조
+
+BitSlice_AES_CUDA_REF/
+├── include/
+│   ├── aes_keys.hpp       # 컴파일타임 AES-128 키 스케줄 (constexpr 템플릿)
+│   ├── bs_helpers.cuh     # load128 / store128 / apply_sbox_bytes
+│   ├── bs_mixcol.cuh      # 비트슬라이스 MixColumns (bs_mixcl, apply_mixcol)
+│   └── bs_sbox.cuh        # 비트슬라이스 S-box (합성체 GF(2^4)^2 방식, ~100 ops)
+└── src/
+    └── aes_full_kernel.cu # 기존 풀 AES 커널 (컴파일타임 키 고정, 32블록/스레드)
+
+핵심 데이터 레이아웃:
+  r[byte*8 + bit] = uint32_t
+  → bit j는 블록 j의 byte번째 바이트 bit번째 비트 (32 레인 동시 처리)
+
+## 새로 추가한 파일
+
+### include/bs_keyschedule.cuh
+런타임 비트슬라이스 키 스케줄 구현.
+
+- bs_ks_init_from_counter(rk[128], base[4]):
+    32개 연속 키(base+0 ~ base+31)를 비트슬라이스 RK0으로 초기화.
+    각 레인 j: key_j = base + j (128비트 빅엔디안 덧셈).
+    rk[byte*8+bit] |= (1 << j) 방식으로 비트 패킹.
+
+- bs_ks_expand_inplace(rk[128], rnd):
+    AES-128 키 확장을 비트슬라이스 인플레이스로 수행.
+    RotWord → SubWord(bs_sbox 4회) → Rcon XOR → 4워드 전파.
+    BS_KS_RCON[11]을 __device__ __constant__로 선언해 디바이스 접근.
+
+### src/aes_bruteforce_bs_kernel.cu
+브루트포스 커널 및 호스트 런처.
+
+- aes128_bs32_bruteforce 커널:
+    스레드당 32개 연속 키 테스트.
+    고정 플레인텍스트를 32레인에 복제 (all-0 or all-F 슬라이스).
+    10라운드 AES: ARK0 → (SB→SR→MC→ExpandKey→ARK)×9 → SB→SR→ExpandKey→ARK.
+    check_match_bs(): 128비트 전체 비교로 레인 매칭 마스크 생성.
+    atomicCAS로 첫 번째 매칭 키만 기록.
+
+- run_aes_bs_bruteforce() 호스트 함수:
+    디바이스 메모리 할당/복사, 커널 실행, 타이밍, 처리량 출력.
+    반환값: 1=발견, 0=미발견, -1=CUDA 오류.
+
+### src/run_bruteforce_bs.cu
+CLI 드라이버 (main 함수).
+  --pt <32hex>     플레인텍스트
+  --ct <32hex>     타겟 암호문
+  --ks <32hex>     키 범위 시작 (포함)
+  --ke <32hex>     키 범위 끝 (미포함)
+  --blocks N       그리드 크기 (기본: 자동 계산)
+  --threads N      블록 크기 (기본: 256)
+
+## 수정한 파일
+
+- BitSlice_AES_CUDA_REF/CMakeLists.txt: cuda-aes-bruteforce-bs 타겟 추가
+- BitSlice_AES_CUDA_REF/README.md: 브루트포스 섹션 추가 (사용법, 설계, 성능)
+- CLAUDE.md (루트): BitSlice_AES_CUDA_REF 브루트포스 커널 섹션 추가
+
+## 검증 결과
+
+FIPS-197 테스트 벡터:
+  PT:  3243f6a8885a308d313198a2e0370734
+  CT:  3925841d02dc09fbdc118597196a0b32
+  KEY: 2b7e151628aed2a6abf7158809cf4f3c  ← 정상 발견
+
+처리량 측정 (T4 GPU, sm_75):
+  ~4 Gkeys/s (4096 blocks × 256 threads × 32 keys/thread)
+
+레지스터 사용: 255개 (최대), ~856바이트 로컬 메모리 스필
+  (런타임 키 스케줄 특성상 불가피: state 128 + rk 128 + 임시변수 ≥ 288 레지스터)
+
+## 빌드 방법
+
+cd BitSlice_AES_CUDA_REF
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target cuda-aes-bruteforce-bs -j$(nproc)
+
+## Git 커밋
+
+Repository: https://github.com/junmo-lee/cuda-aes
+Commit: cc2ccd4
+  - BitSlice_AES_CUDA_REF/.gitignore 추가 (build/, *.o 등 제외)
+  - 위 신규/수정 파일 전체 포함
+  - BitSlice_AES_CUDA_REF의 기존 .git 디렉터리 제거 후 부모 레포에 통합
+
