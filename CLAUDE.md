@@ -52,9 +52,48 @@ tail -f logs/node_0.log
 
 **Logging** (`logger.cpp`): Singleton, per-rank file `logs/node_<rank>.log`, thread-safe with mutex.
 
+## BitSlice_AES_CUDA_REF — Bitsliced brute-force kernel
+
+A standalone bitsliced AES-128 brute-force lives in `BitSlice_AES_CUDA_REF/`. It is independent of the MPI project and builds its own executable.
+
+### Build
+
+```bash
+cd BitSlice_AES_CUDA_REF
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target cuda-aes-bruteforce-bs -j$(nproc)
+```
+
+### Run
+
+```bash
+./build/cuda-aes-bruteforce-bs \
+    --pt 3243f6a8885a308d313198a2e0370734 \
+    --ct 3925841d02dc09fbdc118597196a0b32 \
+    --ks 2b7e151628aed2a6abf7158809cf4f00 \
+    --ke 2b7e151628aed2a6abf7158809cf4f40
+# → KEY FOUND: 2b7e151628aed2a6abf7158809cf4f3c
+```
+
+### Key files added
+
+| File | Role |
+|---|---|
+| `include/bs_keyschedule.cuh` | Runtime bitsliced key schedule (`bs_ks_init_from_counter`, `bs_ks_expand_inplace`) |
+| `src/aes_bruteforce_bs_kernel.cu` | `aes128_bs32_bruteforce` kernel (32 keys/thread) + host launcher |
+| `src/run_bruteforce_bs.cu` | CLI driver (`--pt`, `--ct`, `--ks`, `--ke`, `--blocks`, `--threads`) |
+
+### Design notes
+
+- **32 keys per thread**: plaintext is replicated across all 32 bitsliced lanes; each lane uses a distinct key (`base + lane`).
+- **Runtime key schedule**: `bs_ks_expand_inplace` runs RotWord → SubWord (via `bs_sbox`) → Rcon XOR → 4-word propagation on bitsliced data.
+- **Match detection**: after 10 rounds, a single 128-bit comparison produces a 32-bit lane mask; the winning lane reports via `atomicCAS`.
+- **Throughput**: ~4 Gkeys/s on T4 (sm_75), 255 registers used with ~856 B local-memory spill.
+
 ## Known Limitations
 
 - AES-128 ECB only (CTR mode and AES-256 are planned future work)
 - Key space split operates on the lower 64 bits (full 128-bit iteration is a future improvement)
 - Blocking MPI communication (async improvements possible)
 - No fault tolerance for node failures
+- `cuda-aes-bruteforce-bs`: single kernel launch covers `grid×block×32` keys; callers must loop for ranges larger than that
