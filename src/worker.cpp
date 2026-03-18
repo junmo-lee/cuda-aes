@@ -4,6 +4,7 @@
 
 #include "worker.h"
 #include "aes_cuda.cuh"
+#include "aes_cuda_bs.cuh"
 #include "aes_cpu.h"
 #include "logger.h"
 
@@ -22,11 +23,17 @@ Worker::Worker(int rank)
 void Worker::benchmark() {
     LOG_INFO("Benchmarking devices…");
 
-    // GPU
+    // GPU – T-table kernel vs bitsliced kernel
     gpu_speeds_.resize(num_gpus_, 0.0);
+    bs_gpu_speeds_.resize(num_gpus_, 0.0);
     for (int g = 0; g < num_gpus_; g++) {
-        gpu_speeds_[g] = gpu_benchmark(g);
-        LOG_INFO("  GPU[%d]: %.2e keys/s", g, gpu_speeds_[g]);
+        gpu_speeds_[g]    = gpu_benchmark(g);
+        bs_gpu_speeds_[g] = gpu_benchmark_bs(g);
+        double ratio = (gpu_speeds_[g] > 0.0)
+                       ? bs_gpu_speeds_[g] / gpu_speeds_[g] : 0.0;
+        LOG_INFO("  GPU[%d] T-table:   %.2e keys/s", g, gpu_speeds_[g]);
+        LOG_INFO("  GPU[%d] Bitsliced: %.2e keys/s  (%.2fx vs T-table)",
+                 g, bs_gpu_speeds_[g], ratio);
     }
 
     // CPU (use hardware_concurrency - 1, reserve 1 thread for monitoring)
@@ -40,9 +47,9 @@ void Worker::benchmark() {
 // ── Work splitting ────────────────────────────────────────────────────────────
 std::vector<Worker::DeviceRange>
 Worker::split_work(Key128 start, u64 total) const {
-    // Sum of all speeds
+    // Use bitsliced GPU speeds for proportional allocation (that's what process() runs).
     double total_speed = cpu_speed_;
-    for (double s : gpu_speeds_) total_speed += s;
+    for (double s : bs_gpu_speeds_) total_speed += s;
 
     std::vector<DeviceRange> ranges;
 
@@ -109,7 +116,8 @@ WorkResult Worker::process(const WorkAssignment& wa) {
         if (dr.type == DeviceRange::GPU) {
             threads.emplace_back([&, dr]() {
                 Key128 fk;
-                bool ok = gpu_bruteforce(
+                // Use the bitsliced kernel for GPU brute-force.
+                bool ok = gpu_bruteforce_bs(
                     dr.id, pt, ct, dr.start, dr.count,
                     fk, stop_flag, keys_tried);
                 if (ok) {

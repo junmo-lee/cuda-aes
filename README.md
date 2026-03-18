@@ -154,29 +154,49 @@ mpirun
 │   └── 키 발견 시 결과 출력 후 전체 종료 신호 전파
 │
 └── Rank 1..N (Worker)
-    ├── [Benchmark] GPU 0, 1, ... 및 CPU 속도 측정
-    ├── [Split] GPU/CPU 속도 비율에 따라 키 범위 자동 분배
-    │   예) GPU 26 Gkeys/s × 2 + CPU 1 Gkeys/s
-    │       → GPU:GPU:CPU = 49%:49%:2%
-    ├── [GPU Threads] cudaSetDevice(g)로 각 GPU 독립 제어
+    ├── [Benchmark] GPU마다 T-table 커널과 비트슬라이싱 커널 속도를 각각 측정 및 비교
+    ├── [Split] 비트슬라이싱 GPU 속도 + CPU 속도 비율에 따라 키 범위 자동 분배
+    │   예) GPU(BS) 8 Gkeys/s + CPU 0.5 Gkeys/s
+    │       → GPU:CPU = 94%:6%
+    ├── [GPU Threads] 비트슬라이싱 커널로 브루트 포스 수행 (aes_cuda_bs.cu)
     ├── [CPU Threads] AES-NI 멀티스레드 (hardware_concurrency - 1)
     ├── [Monitor Thread] 5초마다 진행률 로깅 (예약 스레드)
     └── 키 발견 시 즉시 Master에 결과 보고
 ```
 
+### GPU 커널 구현 방식 비교
+
+| 구현 | 파일 | 방식 | 키/스레드 |
+|---|---|---|---|
+| T-table | `src/aes_cuda.cu` | 공유 메모리 T-table 룩업 | 1 (range 반복) |
+| 비트슬라이싱 | `src/aes_cuda_bs.cu` | GF(2) 논리 연산, 룩업 테이블 없음 | 32 (레인 병렬) |
+
+- **T-table 커널**: 1개 스레드가 키를 순차 반복. 공유 메모리에 T0 테이블(256×32 뱅크)을 캐싱해 라운드당 4번의 고속 룩업으로 AES 라운드를 처리.
+- **비트슬라이싱 커널**: 1개 스레드가 32개 키를 동시 처리. 각 비트 위치를 `uint32_t` 1개로 표현(레인 j = 비트 j)하며, AES S-box를 GF(2) 조합 논리로 구현. 룩업 테이블 없이 순수 산술 연산으로 동작해 캐시 오염이 없음.
+
 ---
 
 ## 성능 지표
 
-실측 환경: GPU 2장, CPU 32코어
+실측 환경 A: GPU 2장 (A계열), CPU 32코어
 
-| 장치 | 처리 속도 |
-|---|---|
-| GPU 1개 (A계열) | ~26 Gkeys/s |
-| GPU 2개 (단일 노드) | ~53 Gkeys/s |
-| CPU 31 threads | ~1 Gkeys/s |
-| **단일 노드 합계** | **~54 Gkeys/s** |
-| **120 Worker 노드 추산** | **~6.4 Tkeys/s** |
+| 장치 | T-table 커널 | 비트슬라이싱 커널 |
+|---|---|---|
+| GPU 1개 (A계열) | ~26 Gkeys/s | 측정 예정 |
+| GPU 2개 (단일 노드) | ~53 Gkeys/s | 측정 예정 |
+| CPU 31 threads | ~1 Gkeys/s | — |
+| **단일 노드 합계** | **~54 Gkeys/s** | — |
+| **120 Worker 노드 추산** | **~6.4 Tkeys/s** | — |
+
+실측 환경 B: RTX 4090 1장 (sm_89), CPU 28코어
+
+| 장치 | T-table 커널 | 비트슬라이싱 커널 | 비율 |
+|---|---|---|---|
+| GPU (RTX 4090) | ~26.3 Gkeys/s | ~7.96 Gkeys/s | 0.30× |
+| CPU (27 threads) | — | — | ~0.48 Gkeys/s |
+
+> RTX 4090처럼 공유 메모리 대역폭이 넓은 GPU에서는 T-table이 비트슬라이싱보다 약 3.3배 빠릅니다.
+> 비트슬라이싱은 룩업 테이블 없이 동작해 캐시 오염이 없으며, 공유 메모리가 부족한 환경이나 레지스터 압력이 낮은 아키텍처에서 상대적으로 유리할 수 있습니다.
 
 > AES-128 전체 키 공간은 2¹²⁸ ≈ 3.4 × 10³⁸개로 현재 기술로는 완전 탐색이 불가능합니다.
 > 본 시스템은 **부분 키 공간 탐색** (known plaintext attack에서 키 힌트가 있는 경우) 또는 **HPC 성능 벤치마크** 목적으로 설계되었습니다.
@@ -199,10 +219,11 @@ logs/
 
 로그 예시:
 ```
-[2026-03-10 03:12:09][INFO][rank=1] Benchmarking devices…
-[2026-03-10 03:12:10][INFO][rank=1]   GPU[0]: 2.63e+10 keys/s
-[2026-03-10 03:12:11][INFO][rank=1]   CPU (31 threads): 1.03e+09 keys/s
-[2026-03-10 03:12:11][INFO][rank=1] Progress: 2.62e+08 keys tried, speed=2.62e+10 keys/s
+[2026-03-18 11:29:01][INFO][rank=1] Benchmarking devices…
+[2026-03-18 11:29:02][INFO][rank=1]   GPU[0] T-table:   2.63e+10 keys/s
+[2026-03-18 11:29:02][INFO][rank=1]   GPU[0] Bitsliced: 7.96e+09 keys/s  (0.30x vs T-table)
+[2026-03-18 11:29:03][INFO][rank=1]   CPU (27 threads): 4.84e+08 keys/s
+[2026-03-18 11:29:08][INFO][rank=1] Progress: 1.99e+02 keys tried, speed=3.98e+01 keys/s
 ```
 
 ---

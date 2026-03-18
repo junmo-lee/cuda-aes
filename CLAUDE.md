@@ -38,11 +38,25 @@ tail -f logs/node_0.log
 
 **Master (`master.cpp`):** Partitions the 128-bit key space and dispatches `WorkAssignment` structs to workers via MPI. Waits for `WorkResult` replies; terminates all workers on first match.
 
-**Worker (`worker.cpp`):** On startup, benchmarks each GPU (via `aes_cuda.cu`) and CPU threads (via `aes_cpu.cpp`), then splits the received key range proportionally (e.g., 49%/49%/2% for dual-GPU+CPU). Launches one thread per GPU (`cudaSetDevice`) plus OpenMP threads for CPU. An atomic stop flag enables early exit across all threads when a key is found.
+**Worker (`worker.cpp`):** On startup, benchmarks each GPU with **both** the T-table kernel (`gpu_benchmark`) and the bitsliced kernel (`gpu_benchmark_bs`), then logs a comparison ratio. Work is split proportionally using bitsliced GPU speeds (the kernel used for actual searching). Launches one thread per GPU running `gpu_bruteforce_bs` plus OpenMP threads for CPU. An atomic stop flag enables early exit across all threads when a key is found.
 
-**GPU kernel (`aes_cuda.cu`, 430 lines):** Each CUDA thread tries a contiguous range of keys. AES round keys are precomputed once and stored in shared memory. Core AES-128 is implemented in CUDA using byte-substitution (SubBytes), ShiftRows, MixColumns, and AddRoundKey.
+**GPU kernels — two implementations (benchmarked on every startup):**
+
+| File | Kernel | Strategy | Keys/thread |
+|---|---|---|---|
+| `aes_cuda.cu` | `aes128_bruteforce_kernel` | T-table lookup in shared memory | 1 (inner loop) |
+| `aes_cuda_bs.cu` | `aes128_bs32_bruteforce_kernel` | Bitsliced GF(2) logic, no tables | 32 (lane-parallel) |
+
+Workers benchmark both kernels per GPU at startup and log the comparison ratio. The bitsliced kernel (`gpu_bruteforce_bs`) is used for actual brute-force; the T-table kernel is retained for benchmarking only.
+
+**`aes_cuda.cu` (T-table kernel):** Each CUDA thread tries a contiguous range of keys. T0 table (256×32 shared-memory banks) is loaded into shared memory; `__byte_perm` handles byte rotation. AES-128 implemented via SubBytes/ShiftRows/MixColumns/AddRoundKey.
+
+**`aes_cuda_bs.cu` (bitsliced kernel):** Each CUDA thread tests 32 keys in parallel. State is stored bitsliced: `r[byte*8+bit]` is a `uint32_t` where bit j = bit `bit` of byte `byte` for lane j. S-box is implemented as pure combinatorial GF(2) logic (no lookup tables). Key schedule expanded in-place with `bs_ks_expand_inplace`. Headers sourced from `BitSlice_AES_CUDA_REF/include/`.
 
 **CPU path (`aes_cpu.cpp`):** Uses Intel AES-NI intrinsics (`_mm_aesenc_si128`, etc.) with OpenMP parallelism. Requires `-maes -msse4.1` at compile time — CPU without AES-NI support will fail to compile/run.
+
+**New headers (`include/`):**
+- `aes_cuda_bs.cuh`: declares `gpu_bruteforce_bs(device_id, pt, ct, key_start, num_keys, found_key, stop_flag, keys_tried)` and `gpu_benchmark_bs(device_id, duration_ms)`
 
 **Key data structures** (`include/utils.h`):
 - `Key128`: 4×u32 big-endian; supports `+=`, `<`, comparison for iteration
@@ -80,8 +94,13 @@ cmake --build build --target cuda-aes-bruteforce-bs -j$(nproc)
 | File | Role |
 |---|---|
 | `include/bs_keyschedule.cuh` | Runtime bitsliced key schedule (`bs_ks_init_from_counter`, `bs_ks_expand_inplace`) |
-| `src/aes_bruteforce_bs_kernel.cu` | `aes128_bs32_bruteforce` kernel (32 keys/thread) + host launcher |
+| `include/bs_sbox.cuh` | Bitsliced AES S-box (pure GF(2) combinatorial logic) |
+| `include/bs_mixcol.cuh` | Bitsliced MixColumns (`bs_mixcl`, `apply_mixcol<B0,B1,B2,B3>`) |
+| `include/bs_helpers.cuh` | Template helpers (`load128`, `store128`, `apply_sbox_bytes`) |
+| `src/aes_bruteforce_bs_kernel.cu` | `aes128_bs32_bruteforce` kernel (32 keys/thread) + `run_aes_bs_bruteforce` host launcher |
 | `src/run_bruteforce_bs.cu` | CLI driver (`--pt`, `--ct`, `--ks`, `--ke`, `--blocks`, `--threads`) |
+
+> These headers are also consumed by the main project via `BitSlice_AES_CUDA_REF/include/` in the top-level `CMakeLists.txt`.
 
 ### Design notes
 

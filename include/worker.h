@@ -29,5 +29,6 @@ private:
     int                 rank_;
     int                 num_gpus_;
     double              cpu_speed_ = 0.0;
-    std::vector<double> gpu_speeds_;
+    std::vector<double> gpu_speeds_;     // T-table kernel speeds
+    std::vector<double> bs_gpu_speeds_;  // bitsliced kernel speeds
 };

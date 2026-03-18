@@ -1,7 +1,0 @@
-[2026-03-10 03:12:09][INFO][rank=1] Logger initialised (rank=1)
-[2026-03-10 03:12:09][INFO][rank=1] Benchmarking devices…
-[2026-03-10 03:12:10][INFO][rank=1]   GPU[0]: 2.63e+10 keys/s
-[2026-03-10 03:12:10][INFO][rank=1]   GPU[1]: 2.65e+10 keys/s
-[2026-03-10 03:12:11][INFO][rank=1]   CPU (31 threads): 1.03e+09 keys/s
-[2026-03-10 03:12:11][INFO][rank=1] Received work: [2b7e151628aed2a6abf7158809cf4f00 .. 2b7e151628aed2a6abf7158809cf4f40)
-[2026-03-10 03:12:11][INFO][rank=1] Key found! Reported to master.

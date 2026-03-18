@@ -25,6 +25,7 @@ set(CXX_SOURCES
 )
 set(CUDA_SOURCES
     src/aes_cuda.cu
+    src/aes_cuda_bs.cu
 )
 
 add_executable(aes_bruteforce ${CXX_SOURCES} ${CUDA_SOURCES})
@@ -32,6 +33,7 @@ add_executable(aes_bruteforce ${CXX_SOURCES} ${CUDA_SOURCES})
 # ── Include dirs ───────────────────────────────────────────────────────────────
 target_include_directories(aes_bruteforce PRIVATE
     include/
+    BitSlice_AES_CUDA_REF/include/
     ${MPI_CXX_INCLUDE_DIRS}
 )
 
