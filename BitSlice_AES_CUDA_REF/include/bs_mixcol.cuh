@@ -1,6 +1,39 @@
 #pragma once
 #include <stdint.h>
 
+#include <stdio.h>
+
+__device__ __forceinline__ void bs_debug_col(const char* label,
+    uint32_t r0, uint32_t r1, uint32_t r2, uint32_t r3,
+    uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7,
+    uint32_t r8, uint32_t r9, uint32_t r10, uint32_t r11,
+    uint32_t r12, uint32_t r13, uint32_t r14, uint32_t r15,
+    uint32_t r16, uint32_t r17, uint32_t r18, uint32_t r19,
+    uint32_t r20, uint32_t r21, uint32_t r22, uint32_t r23,
+    uint32_t r24, uint32_t r25, uint32_t r26, uint32_t r27,
+    uint32_t r28, uint32_t r29, uint32_t r30, uint32_t r31)
+{
+    // Lane 0만 출력
+    uint8_t b[4] = {0,0,0,0};
+    uint32_t* rs = &r0; // 주의: 레지스터 주소 접근은 위험할 수 있으나 r0~r31이 연속적이라고 가정하거나 수동 루프
+    // 안전하게 수동으로 하나씩 복원
+    #define GET_BYTE(idx, start_reg) \
+        { uint8_t val=0; \
+          if (r##idx & 1) val |= 1; if (r##(idx+1) & 1) val |= 2; \
+          if (r##(idx+2) & 1) val |= 4; if (r##(idx+3) & 1) val |= 8; \
+          if (r##(idx+4) & 1) val |= 16; if (r##(idx+5) & 1) val |= 32; \
+          if (r##(idx+6) & 1) val |= 64; if (r##(idx+7) & 1) val |= 128; \
+          b[idx/8] = val; }
+
+    // 매크로를 쓸 수 없으므로 (r##idx 문법) 수동으로 작성
+    { uint8_t v=0; if(r0&1)v|=1; if(r1&1)v|=2; if(r2&1)v|=4; if(r3&1)v|=8; if(r4&1)v|=16; if(r5&1)v|=32; if(r6&1)v|=64; if(r7&1)v|=128; b[0]=v; }
+    { uint8_t v=0; if(r8&1)v|=1; if(r9&1)v|=2; if(r10&1)v|=4; if(r11&1)v|=8; if(r12&1)v|=16; if(r13&1)v|=32; if(r14&1)v|=64; if(r15&1)v|=128; b[1]=v; }
+    { uint8_t v=0; if(r16&1)v|=1; if(r17&1)v|=2; if(r18&1)v|=4; if(r19&1)v|=8; if(r20&1)v|=16; if(r21&1)v|=32; if(r22&1)v|=64; if(r23&1)v|=128; b[2]=v; }
+    { uint8_t v=0; if(r24&1)v|=1; if(r25&1)v|=2; if(r26&1)v|=4; if(r27&1)v|=8; if(r28&1)v|=16; if(r29&1)v|=32; if(r30&1)v|=64; if(r31&1)v|=128; b[3]=v; }
+
+    printf("    [DEBUG_MC] %-10s: %02x %02x %02x %02x\n", label, b[0], b[1], b[2], b[3]);
+}
+
 __device__ __forceinline__ void bs_mixcl(
     uint32_t &r0,  uint32_t &r1,  uint32_t &r2,  uint32_t &r3,
     uint32_t &r4,  uint32_t &r5,  uint32_t &r6,  uint32_t &r7,
@@ -9,8 +42,11 @@ __device__ __forceinline__ void bs_mixcl(
     uint32_t &r16, uint32_t &r17, uint32_t &r18, uint32_t &r19,
     uint32_t &r20, uint32_t &r21, uint32_t &r22, uint32_t &r23,
     uint32_t &r24, uint32_t &r25, uint32_t &r26, uint32_t &r27,
-    uint32_t &r28, uint32_t &r29, uint32_t &r30, uint32_t &r31)
+    uint32_t &r28, uint32_t &r29, uint32_t &r30, uint32_t &r31,
+    bool do_print = false)
 {
+    if (do_print) bs_debug_col("MC_START", r0,r1,r2,r3,r4,r5,r6,r7,r8,r9,r10,r11,r12,r13,r14,r15,r16,r17,r18,r19,r20,r21,r22,r23,r24,r25,r26,r27,r28,r29,r30,r31);
+
     uint32_t o0=0,o1=0,o2=0,o3=0,o4=0,o5=0,o6=0,o7=0;
     uint32_t o8=0,o9=0,o10=0,o11=0,o12=0,o13=0,o14=0,o15=0;
     uint32_t o16=0,o17=0,o18=0,o19=0,o20=0,o21=0,o22=0,o23=0;
@@ -19,6 +55,7 @@ __device__ __forceinline__ void bs_mixcl(
     uint32_t a0,a1,a2,a3,a4,a5,a6,a7;
     uint32_t tmp;
 
+    // Row 0 update
     a0=r0 ^ r8;  a1=r1 ^ r9;  a2=r2 ^ r10; a3=r3 ^ r11;
     a4=r4 ^ r12; a5=r5 ^ r13; a6=r6 ^ r14; a7=r7 ^ r15;
     tmp=a7;
@@ -29,7 +66,9 @@ __device__ __forceinline__ void bs_mixcl(
     o2=a2 ^ r10 ^ r18 ^ r26;  o3=a3 ^ r11 ^ r19 ^ r27;
     o4=a4 ^ r12 ^ r20 ^ r28;  o5=a5 ^ r13 ^ r21 ^ r29;
     o6=a6 ^ r14 ^ r22 ^ r30;  o7=a7 ^ r15 ^ r23 ^ r31;
+    if (do_print) bs_debug_col("AFTER_R0", o0,o1,o2,o3,o4,o5,o6,o7, r8,r9,r10,r11,r12,r13,r14,r15, r16,r17,r18,r19,r20,r21,r22,r23, r24,r25,r26,r27,r28,r29,r30,r31);
 
+    // Row 1 update
     a0=r8 ^ r16;  a1=r9 ^ r17;  a2=r10 ^ r18; a3=r11 ^ r19;
     a4=r12 ^ r20; a5=r13 ^ r21; a6=r14 ^ r22; a7=r15 ^ r23;
     tmp=a7;
@@ -40,7 +79,9 @@ __device__ __forceinline__ void bs_mixcl(
     o10=a2 ^ r2 ^ r18 ^ r26;  o11=a3 ^ r3 ^ r19 ^ r27;
     o12=a4 ^ r4 ^ r20 ^ r28;  o13=a5 ^ r5 ^ r21 ^ r29;
     o14=a6 ^ r6 ^ r22 ^ r30;  o15=a7 ^ r7 ^ r23 ^ r31;
+    if (do_print) bs_debug_col("AFTER_R1", o0,o1,o2,o3,o4,o5,o6,o7, o8,o9,o10,o11,o12,o13,o14,o15, r16,r17,r18,r19,r20,r21,r22,r23, r24,r25,r26,r27,r28,r29,r30,r31);
 
+    // Row 2 update
     a0=r16 ^ r24; a1=r17 ^ r25; a2=r18 ^ r26; a3=r19 ^ r27;
     a4=r20 ^ r28; a5=r21 ^ r29; a6=r22 ^ r30; a7=r23 ^ r31;
     tmp=a7;
@@ -51,7 +92,9 @@ __device__ __forceinline__ void bs_mixcl(
     o18=a2 ^ r10 ^ r2 ^ r26;  o19=a3 ^ r11 ^ r3 ^ r27;
     o20=a4 ^ r12 ^ r4 ^ r28;  o21=a5 ^ r13 ^ r5 ^ r29;
     o22=a6 ^ r14 ^ r6 ^ r30;  o23=a7 ^ r15 ^ r7 ^ r31;
+    if (do_print) bs_debug_col("AFTER_R2", o0,o1,o2,o3,o4,o5,o6,o7, o8,o9,o10,o11,o12,o13,o14,o15, o16,o17,o18,o19,o20,o21,o22,o23, r24,r25,r26,r27,r28,r29,r30,r31);
 
+    // Row 3 update
     a0=r0 ^ r24;  a1=r1 ^ r25;  a2=r2 ^ r26;  a3=r3 ^ r27;
     a4=r4 ^ r28;  a5=r5 ^ r29;  a6=r6 ^ r30;  a7=r7 ^ r31;
     tmp=a7;
@@ -62,6 +105,7 @@ __device__ __forceinline__ void bs_mixcl(
     o26=a2 ^ r10 ^ r2 ^ r18;  o27=a3 ^ r11 ^ r3 ^ r19;
     o28=a4 ^ r12 ^ r4 ^ r20;  o29=a5 ^ r13 ^ r5 ^ r21;
     o30=a6 ^ r14 ^ r6 ^ r22;  o31=a7 ^ r15 ^ r7 ^ r23;
+    if (do_print) bs_debug_col("AFTER_R3", o0,o1,o2,o3,o4,o5,o6,o7, o8,o9,o10,o11,o12,o13,o14,o15, o16,o17,o18,o19,o20,o21,o22,o23, o24,o25,o26,o27,o28,r29,r30,r31);
 
     r0=o0;   r1=o1;   r2=o2;   r3=o3;   r4=o4;   r5=o5;   r6=o6;   r7=o7;
     r8=o8;   r9=o9;   r10=o10; r11=o11; r12=o12; r13=o13; r14=o14; r15=o15;
@@ -71,13 +115,14 @@ __device__ __forceinline__ void bs_mixcl(
 
 // Map 4 byte indices (each contributes 8 slices) to bs_mixcl parameters
 template<int B0, int B1, int B2, int B3>
-__device__ __forceinline__ void apply_mixcol(uint32_t (&r)[128]) {
+__device__ __forceinline__ void apply_mixcol(uint32_t (&r)[128], bool do_print = false) {
     constexpr int a = B0*8, b = B1*8, c = B2*8, d = B3*8;
     bs_mixcl(
         r[a+0], r[a+1], r[a+2], r[a+3], r[a+4], r[a+5], r[a+6], r[a+7],
         r[b+0], r[b+1], r[b+2], r[b+3], r[b+4], r[b+5], r[b+6], r[b+7],
         r[c+0], r[c+1], r[c+2], r[c+3], r[c+4], r[c+5], r[c+6], r[c+7],
-        r[d+0], r[d+1], r[d+2], r[d+3], r[d+4], r[d+5], r[d+6], r[d+7]
+        r[d+0], r[d+1], r[d+2], r[d+3], r[d+4], r[d+5], r[d+6], r[d+7],
+        do_print
     );
 }
 

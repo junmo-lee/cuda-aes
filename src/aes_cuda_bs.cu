@@ -103,6 +103,38 @@ __device__ __forceinline__ uint32_t bs_check_match(
     return match;
 }
 
+__device__ void debug_print_state(const char* label, int round, const uint32_t r[128]) {
+    uint8_t out[16];
+    for (int byte_idx = 0; byte_idx < 16; byte_idx++) {
+        uint8_t pb = 0;
+        for (int b = 0; b < 8; b++) {
+            if (r[byte_idx * 8 + b] & 1u) {
+                pb |= (1u << b);
+            }
+        }
+        out[byte_idx] = pb;
+    }
+    printf("round[%2d].%-5s ", round, label);
+    for (int i = 0; i < 16; i++) printf("%02x", out[i]);
+    printf("\n");
+}
+
+__device__ void debug_print_rk(const char* label, int round, const uint32_t rk[128]) {
+    uint8_t out[16];
+    for (int byte_idx = 0; byte_idx < 16; byte_idx++) {
+        uint8_t pb = 0;
+        for (int b = 0; b < 8; b++) {
+            if (rk[byte_idx * 8 + b] & 1u) {
+                pb |= (1u << b);
+            }
+        }
+        out[byte_idx] = pb;
+    }
+    printf("round[%2d].%-5s ", round, label);
+    for (int i = 0; i < 16; i++) printf("%02x", out[i]);
+    printf("\n");
+}
+
 // ── Bitsliced AES-128 brute-force kernel ──────────────────────────────────────
 //
 // Each thread tests 32 consecutive keys starting at base_key + tid*32.
@@ -123,6 +155,8 @@ __global__ void aes128_bs32_bruteforce_kernel(
 
     // Early exit if another thread already found the key.
     if (*found_flag) return;
+
+    bool do_print = (tid == 0);
 
     // ── Compute base key for this thread's 32-key batch ───────────────────
     const uint64_t blo = ((uint64_t)base_key[2] << 32) | base_key[3];
@@ -146,9 +180,13 @@ __global__ void aes128_bs32_bruteforce_kernel(
             r[byte_idx*8 + b] = ((pb >> b) & 1u) ? 0xFFFFFFFFu : 0x00000000u;
     }
 
+    if (do_print) debug_print_state("input", 0, r);
+
     // ── Initialise bitsliced round-key-0 from 32 consecutive keys ─────────
     uint32_t rk[128];
     bs_ks_init_from_counter(rk, batch_base);
+
+    if (do_print) debug_print_rk("k_sch", 0, rk);
 
     // ── Round 0: AddRoundKey ───────────────────────────────────────────────
     bs_addkey(r, rk);
@@ -156,21 +194,32 @@ __global__ void aes128_bs32_bruteforce_kernel(
     // ── Rounds 1..9: SubBytes → ShiftRows → MixColumns → ExpandKey → ARK ──
     #pragma unroll
     for (int rnd = 1; rnd <= 9; rnd++) {
+        if (do_print) debug_print_state("start", rnd, r);
         bs_subbytes<0>(r);
+        if (do_print) debug_print_state("s_box", rnd, r);
         bs_shiftrows(r);
-        apply_mixcol<0,1,2,3>(r);
-        apply_mixcol<4,5,6,7>(r);
-        apply_mixcol<8,9,10,11>(r);
-        apply_mixcol<12,13,14,15>(r);
+        if (do_print) debug_print_state("s_row", rnd, r);
+        apply_mixcol<0,1,2,3>(r, do_print);
+        apply_mixcol<4,5,6,7>(r, do_print);
+        apply_mixcol<8,9,10,11>(r, do_print);
+        apply_mixcol<12,13,14,15>(r, do_print);
+        if (do_print) debug_print_state("m_col", rnd, r);
         bs_ks_expand_inplace(rk, rnd);
+        if (do_print) debug_print_rk("k_sch", rnd, rk);
         bs_addkey(r, rk);
     }
 
     // ── Round 10: SubBytes → ShiftRows → ExpandKey → ARK (no MixColumns) ──
+    if (do_print) debug_print_state("start", 10, r);
     bs_subbytes<0>(r);
+    if (do_print) debug_print_state("s_box", 10, r);
     bs_shiftrows(r);
+    if (do_print) debug_print_state("s_row", 10, r);
     bs_ks_expand_inplace(rk, 10);
+    if (do_print) debug_print_rk("k_sch", 10, rk);
     bs_addkey(r, rk);
+
+    if (do_print) debug_print_state("output", 10, r);
 
     // ── Match detection ───────────────────────────────────────────────────
     uint32_t match = bs_check_match(r, ciphertext);
