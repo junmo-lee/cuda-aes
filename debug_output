@@ -1,0 +1,245 @@
+[2026-03-31 04:59:59][INFO][rank=0] Logger initialised (rank=0)
+[2026-03-31 04:59:59][INFO][rank=1] Logger initialised (rank=1)
+[2026-03-31 04:59:59][INFO][rank=0] Master starting search, 1 workers.
+[2026-03-31 04:59:59][INFO][rank=0] Key start: 000102030405060708090a0b0c0d0e0f
+[2026-03-31 04:59:59][INFO][rank=0] Key end  : 000102030405060708090a0b0c0d0e10
+[2026-03-31 04:59:59][INFO][rank=0]   → worker 1: [000102030405060708090a0b0c0d0e0f .. 000102030405060708090a0b0c0d0e10)
+[2026-03-31 04:59:59][INFO][rank=1] Received work: [000102030405060708090a0b0c0d0e0f .. 000102030405060708090a0b0c0d0e10)
+round[ 0].input 00112233445566778899aabbccddeeff
+round[ 0].k_sch 000102030405060708090a0b0c0d0e0f
+round[ 1].start 00102030405060708090a0b0c0d0e0f0
+round[ 1].s_box 63cab7040953d051cd60e0e7ba70e18c
+round[ 1].s_row 6353e08c0960e104cd70b751bacad0e7
+    [DEBUG_MC] MC_START  : 63 53 e0 8c
+    [DEBUG_MC] AFTER_R0  : 5f 53 e0 8c
+    [DEBUG_MC] AFTER_R1  : 5f 72 e0 8c
+    [DEBUG_MC] AFTER_R2  : 5f 72 64 8c
+    [DEBUG_MC] AFTER_R3  : 5f 72 64 95
+    [DEBUG_MC] MC_START  : 09 60 e1 04
+    [DEBUG_MC] AFTER_R0  : 57 60 e1 04
+    [DEBUG_MC] AFTER_R1  : 57 f5 e1 04
+    [DEBUG_MC] AFTER_R2  : 57 f5 bc 04
+    [DEBUG_MC] AFTER_R3  : 57 f5 bc 12
+    [DEBUG_MC] MC_START  : cd 70 b7 51
+    [DEBUG_MC] AFTER_R0  : f7 70 b7 51
+    [DEBUG_MC] AFTER_R1  : f7 be b7 51
+    [DEBUG_MC] AFTER_R2  : f7 be 3b 51
+    [DEBUG_MC] AFTER_R3  : f7 be 3b 49
+    [DEBUG_MC] MC_START  : ba ca d0 e7
+    [DEBUG_MC] AFTER_R0  : 1d ca d0 e7
+    [DEBUG_MC] AFTER_R1  : 1d b9 d0 e7
+    [DEBUG_MC] AFTER_R2  : 1d b9 f9 e7
+    [DEBUG_MC] AFTER_R3  : 1d b9 f9 fa
+round[ 1].m_col 5f72641557f5bc92f7be3b291db9f91a
+round[ 1].k_sch d6aa74fdd2af72fadaa678f1d6ab76fe
+round[ 2].start 89d810e8855ace682d1843d8cb128fe4
+round[ 2].s_box a761ca9b97be8b45d8ad1a611fc97369
+round[ 2].s_row a7be1a6997ad739bd8c9ca451f618b61
+    [DEBUG_MC] MC_START  : a7 be 1a 69
+    [DEBUG_MC] AFTER_R0  : ff be 1a 69
+    [DEBUG_MC] AFTER_R1  : ff 87 1a 69
+    [DEBUG_MC] AFTER_R2  : ff 87 96 69
+    [DEBUG_MC] AFTER_R3  : ff 87 96 64
+    [DEBUG_MC] MC_START  : 97 ad 73 9b
+    [DEBUG_MC] AFTER_R0  : 31 ad 73 9b
+    [DEBUG_MC] AFTER_R1  : 31 d8 73 9b
+    [DEBUG_MC] AFTER_R2  : 31 d8 6a 9b
+    [DEBUG_MC] AFTER_R3  : 31 d8 6a 91
+    [DEBUG_MC] MC_START  : d8 c9 ca 45
+    [DEBUG_MC] AFTER_R0  : 64 c9 ca 45
+    [DEBUG_MC] AFTER_R1  : 64 51 ca 45
+    [DEBUG_MC] AFTER_R2  : 64 51 51 45
+    [DEBUG_MC] AFTER_R3  : 64 51 51 5a
+    [DEBUG_MC] MC_START  : 1f 61 8b 61
+    [DEBUG_MC] AFTER_R0  : 77 61 8b 61
+    [DEBUG_MC] AFTER_R1  : 77 3a 8b 61
+    [DEBUG_MC] AFTER_R2  : 77 3a d0 61
+    [DEBUG_MC] AFTER_R3  : 77 3a d0 69
+round[ 2].m_col ff87968431d86a51645151fa773ad009
+round[ 2].k_sch b692cf0b643dbdf1be9bc5006830b3fe
+round[ 3].start 4915598f55e5d7a0daca94fa1f0a63f7
+round[ 3].s_box 3b59cb73fcd90ee05774222dc067fb68
+round[ 3].s_row 3bd92268fc74fb735767cbe0c0590e2d
+    [DEBUG_MC] MC_START  : 3b d9 22 68
+    [DEBUG_MC] AFTER_R0  : 4c d9 22 68
+    [DEBUG_MC] AFTER_R1  : 4c 9c 22 68
+    [DEBUG_MC] AFTER_R2  : 4c 9c 1e 68
+    [DEBUG_MC] AFTER_R3  : 4c 9c 1e 66
+    [DEBUG_MC] MC_START  : fc 74 fb 73
+    [DEBUG_MC] AFTER_R0  : f7 74 fb 73
+    [DEBUG_MC] AFTER_R1  : f7 71 fb 73
+    [DEBUG_MC] AFTER_R2  : f7 71 f0 73
+    [DEBUG_MC] AFTER_R3  : f7 71 f0 76
+    [DEBUG_MC] MC_START  : 57 67 cb e0
+    [DEBUG_MC] AFTER_R0  : 2c 67 cb e0
+    [DEBUG_MC] AFTER_R1  : 2c 3f cb e0
+    [DEBUG_MC] AFTER_R2  : 2c 3f 86 e0
+    [DEBUG_MC] AFTER_R3  : 2c 3f 86 ee
+    [DEBUG_MC] MC_START  : c0 59 0e 2d
+    [DEBUG_MC] AFTER_R0  : 53 59 0e 2d
+    [DEBUG_MC] AFTER_R1  : 53 4d 0e 2d
+    [DEBUG_MC] AFTER_R2  : 53 4d f2 2d
+    [DEBUG_MC] AFTER_R3  : 53 4d f2 36
+round[ 3].m_col 4c9c1e66f771f0762c3f868e534df256
+round[ 3].k_sch b6ff744ed2c2c9bf6c590cbf0469bf41
+round[ 4].start fa636a2825b339c940668a3157244d17
+round[ 4].s_box 2dfb02343f6d12dd09337ec75b36e3f0
+round[ 4].s_row 2d6d7ef03f33e334093602dd5bfb12c7
+    [DEBUG_MC] MC_START  : 2d 6d 7e f0
+    [DEBUG_MC] AFTER_R0  : 63 6d 7e f0
+    [DEBUG_MC] AFTER_R1  : 63 85 7e f0
+    [DEBUG_MC] AFTER_R2  : 63 85 b7 f0
+    [DEBUG_MC] AFTER_R3  : 63 85 b7 ff
+    [DEBUG_MC] MC_START  : 3f 33 e3 34
+    [DEBUG_MC] AFTER_R0  : fc 33 e3 34
+    [DEBUG_MC] AFTER_R1  : fc 53 e3 34
+    [DEBUG_MC] AFTER_R2  : fc 53 8d 34
+    [DEBUG_MC] AFTER_R3  : fc 53 8d 39
+    [DEBUG_MC] MC_START  : 09 36 02 dd
+    [DEBUG_MC] AFTER_R0  : 97 36 02 dd
+    [DEBUG_MC] AFTER_R1  : 97 be 02 dd
+    [DEBUG_MC] AFTER_R2  : 97 be 47 dd
+    [DEBUG_MC] AFTER_R3  : 97 be 47 ce
+    [DEBUG_MC] MC_START  : 5b fb 12 c7
+    [DEBUG_MC] AFTER_R0  : 75 fb 12 c7
+    [DEBUG_MC] AFTER_R1  : 75 47 12 c7
+    [DEBUG_MC] AFTER_R2  : 75 47 d6 c7
+    [DEBUG_MC] AFTER_R3  : 75 47 d6 d1
+round[ 4].m_col 6385b79ffc538df997be478e7547d691
+round[ 4].k_sch 47f7f7bc95353e03f96c32bcfd058dfd
+round[ 5].start 247240236966b3fa6ed2753288425b6c
+round[ 5].s_box 36400926f9336d2d9fb59d23c42c3950
+round[ 5].s_row 36339d50f9b539269f2c092dc4406d23
+    [DEBUG_MC] MC_START  : 36 33 9d 50
+    [DEBUG_MC] AFTER_R0  : f4 33 9d 50
+    [DEBUG_MC] AFTER_R1  : f4 bc 9d 50
+    [DEBUG_MC] AFTER_R2  : f4 bc d4 50
+    [DEBUG_MC] AFTER_R3  : f4 bc d4 54
+    [DEBUG_MC] MC_START  : f9 b5 39 26
+    [DEBUG_MC] AFTER_R0  : 32 b5 39 26
+    [DEBUG_MC] AFTER_R1  : 32 e5 39 26
+    [DEBUG_MC] AFTER_R2  : 32 e5 54 26
+    [DEBUG_MC] AFTER_R3  : 32 e5 54 30
+    [DEBUG_MC] MC_START  : 9f 2c 09 2d
+    [DEBUG_MC] AFTER_R0  : 75 2c 09 2d
+    [DEBUG_MC] AFTER_R1  : 75 f1 09 2d
+    [DEBUG_MC] AFTER_R2  : 75 f1 d6 2d
+    [DEBUG_MC] AFTER_R3  : 75 f1 d6 25
+    [DEBUG_MC] MC_START  : c4 40 6d 23
+    [DEBUG_MC] AFTER_R0  : 1d 40 6d 23
+    [DEBUG_MC] AFTER_R1  : 1d d0 6d 23
+    [DEBUG_MC] AFTER_R2  : 1d d0 3b 23
+    [DEBUG_MC] AFTER_R3  : 1d d0 3b 3c
+round[ 5].m_col f4bcd45432e554d075f1d6c51dd03b3c
+round[ 5].k_sch 3caaa3e8a99f9deb50f3af57adf622aa
+round[ 6].start c81677bc9b7ac93b25027992b0261996
+round[ 6].s_box e847f56514dadde23f77b64fe7f7d490
+round[ 6].s_row e8dab6901477d4653ff7f5e2e747dd4f
+    [DEBUG_MC] MC_START  : e8 da b6 90
+    [DEBUG_MC] AFTER_R0  : 98 da b6 90
+    [DEBUG_MC] AFTER_R1  : 98 16 b6 90
+    [DEBUG_MC] AFTER_R2  : 98 16 ee 90
+    [DEBUG_MC] AFTER_R3  : 98 16 ee 94
+    [DEBUG_MC] MC_START  : 14 77 d4 65
+    [DEBUG_MC] AFTER_R0  : 00 77 d4 65
+    [DEBUG_MC] AFTER_R1  : 00 f8 d4 65
+    [DEBUG_MC] AFTER_R2  : 00 f8 7f 65
+    [DEBUG_MC] AFTER_R3  : 00 f8 7f 75
+    [DEBUG_MC] MC_START  : 3f f7 f5 e2
+    [DEBUG_MC] AFTER_R0  : 6b f7 f5 e2
+    [DEBUG_MC] AFTER_R1  : 6b 2c f5 e2
+    [DEBUG_MC] AFTER_R2  : 6b 2c 04 e2
+    [DEBUG_MC] AFTER_R3  : 6b 2c 04 fc
+    [DEBUG_MC] MC_START  : e7 47 dd 4f
+    [DEBUG_MC] AFTER_R0  : 8e 47 dd 4f
+    [DEBUG_MC] AFTER_R1  : 8e 5a dd 4f
+    [DEBUG_MC] AFTER_R2  : 8e 5a d0 4f
+    [DEBUG_MC] AFTER_R3  : 8e 5a d0 56
+round[ 6].m_col 9816ee7400f87f556b2c049c8e5ad036
+round[ 6].k_sch 5e390f7df7a69296a7553dc10aa31f6b
+round[ 7].start c62fe109f75eedc3cc79395d84f9cf5d
+round[ 7].s_box b415f8016858552e4bb6124c5f998a4c
+round[ 7].s_row b458124c68b68a014b99f82e5f15554c
+    [DEBUG_MC] MC_START  : b4 58 12 4c
+    [DEBUG_MC] AFTER_R0  : c5 58 12 4c
+    [DEBUG_MC] AFTER_R1  : c5 7e 12 4c
+    [DEBUG_MC] AFTER_R2  : c5 7e 1c 4c
+    [DEBUG_MC] AFTER_R3  : c5 7e 1c 55
+    [DEBUG_MC] MC_START  : 68 b6 8a 01
+    [DEBUG_MC] AFTER_R0  : 9a b6 8a 01
+    [DEBUG_MC] AFTER_R1  : 9a 9b 8a 01
+    [DEBUG_MC] AFTER_R2  : 9a 9b d2 01
+    [DEBUG_MC] AFTER_R3  : 9a 9b d2 06
+    [DEBUG_MC] MC_START  : 4b 99 f8 2e
+    [DEBUG_MC] AFTER_R0  : f0 99 f8 2e
+    [DEBUG_MC] AFTER_R1  : f0 5f f8 2e
+    [DEBUG_MC] AFTER_R2  : f0 5f 4b 2e
+    [DEBUG_MC] AFTER_R3  : f0 5f 4b 20
+    [DEBUG_MC] MC_START  : 5f 15 55 4c
+    [DEBUG_MC] AFTER_R0  : 98 15 55 4c
+    [DEBUG_MC] AFTER_R1  : 98 c6 55 4c
+    [DEBUG_MC] AFTER_R2  : 98 c6 34 4c
+    [DEBUG_MC] AFTER_R3  : 98 c6 34 59
+round[ 7].m_col c57e1c159a9bd286f05f4be098c63439
+round[ 7].k_sch 14f9701ae35fe28c440adf4d4ea9c026
+round[ 8].start d1876c0f79c4300ab45594add66ff41f
+round[ 8].s_box 3e175076b61c04678dfc2295f6a8bfc0
+round[ 8].s_row 3e1c22c0b6fcbf768da85067f6170495
+    [DEBUG_MC] MC_START  : 3e 1c 22 c0
+    [DEBUG_MC] AFTER_R0  : ba 1c 22 c0
+    [DEBUG_MC] AFTER_R1  : ba a0 22 c0
+    [DEBUG_MC] AFTER_R2  : ba a0 3d c0
+    [DEBUG_MC] AFTER_R3  : ba a0 3d c7
+    [DEBUG_MC] MC_START  : b6 fc bf 76
+    [DEBUG_MC] AFTER_R0  : a1 fc bf 76
+    [DEBUG_MC] AFTER_R1  : a1 f9 bf 76
+    [DEBUG_MC] AFTER_R2  : a1 f9 b5 76
+    [DEBUG_MC] AFTER_R3  : a1 f9 b5 6e
+    [DEBUG_MC] MC_START  : 8d a8 50 67
+    [DEBUG_MC] AFTER_R0  : d5 a8 50 67
+    [DEBUG_MC] AFTER_R1  : d5 51 50 67
+    [DEBUG_MC] AFTER_R2  : d5 51 2c 67
+    [DEBUG_MC] AFTER_R3  : d5 51 2c 7a
+    [DEBUG_MC] MC_START  : f6 17 04 95
+    [DEBUG_MC] AFTER_R0  : 5f 17 04 95
+    [DEBUG_MC] AFTER_R1  : 5f 41 04 95
+    [DEBUG_MC] AFTER_R2  : 5f 41 4d 95
+    [DEBUG_MC] AFTER_R3  : 5f 41 4d 83
+round[ 8].m_col baa03de7a1f9b56ed5512cba5f414d23
+round[ 8].k_sch 47438735a41c65b9e016baf4aebf7ad2
+round[ 9].start fde3bad205e5d0d73547964ef1fe37f1
+round[ 9].s_box 5411f4b56bd9700e96a0902fa1bb9aa1
+round[ 9].s_row 54d990a16ba09ab596bbf40ea111702f
+    [DEBUG_MC] MC_START  : 54 d9 90 a1
+    [DEBUG_MC] AFTER_R0  : e9 d9 90 a1
+    [DEBUG_MC] AFTER_R1  : e9 f7 90 a1
+    [DEBUG_MC] AFTER_R2  : e9 f7 4e a1
+    [DEBUG_MC] AFTER_R3  : e9 f7 4e ac
+    [DEBUG_MC] MC_START  : 6b a0 9a b5
+    [DEBUG_MC] AFTER_R0  : 02 a0 9a b5
+    [DEBUG_MC] AFTER_R1  : 02 30 9a b5
+    [DEBUG_MC] AFTER_R2  : 02 30 20 b5
+    [DEBUG_MC] AFTER_R3  : 02 30 20 b6
+    [DEBUG_MC] MC_START  : 96 bb f4 0e
+    [DEBUG_MC] AFTER_R0  : 1b bb f4 0e
+    [DEBUG_MC] AFTER_R1  : 1b f2 f4 0e
+    [DEBUG_MC] AFTER_R2  : 1b f2 cc 0e
+    [DEBUG_MC] AFTER_R3  : 1b f2 cc 12
+    [DEBUG_MC] MC_START  : a1 11 70 2f
+    [DEBUG_MC] AFTER_R0  : 35 11 70 2f
+    [DEBUG_MC] AFTER_R1  : 35 3c 70 2f
+    [DEBUG_MC] AFTER_R2  : 35 3c 21 2f
+    [DEBUG_MC] AFTER_R3  : 35 3c 21 27
+round[ 9].m_col e9f74eec023020f61bf2ccf2353c21c7
+round[ 9].k_sch 549932d1f08557681093ed9cbe2c974e
+round[10].start bd6e7c3df2b5779e0b61216e8b10b689
+round[10].s_box 7a9f102789d5f50b2beffd9f3dca4ea7
+round[10].s_row 7ad5fda789ef4e272bca100b3d9ff59f
+round[10].k_sch 13111d7fe3944a17f307a78b4d2b30c5
+round[10].output 69c4e0d86a7b0430d8cdb78070b4c55a
+[2026-03-31 05:00:04][INFO][rank=1] Progress: 1.00e+00 keys tried, speed=2.00e-01 keys/s
+[2026-03-31 05:00:04][INFO][rank=1] Key found! Reported to master.
+[2026-03-31 05:00:04][INFO][rank=0] !!! KEY FOUND by rank 1: 000102030405060708090a0b0c0d0e0f
+[2026-03-31 05:00:04][INFO][rank=0] Search complete in 5.0 s. Key: 000102030405060708090a0b0c0d0e0f
+
+[RESULT] Key found: 000102030405060708090a0b0c0d0e0f
