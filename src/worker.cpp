@@ -17,7 +17,12 @@
 #include <algorithm>
 
 Worker::Worker(int rank)
-    : rank_(rank), num_gpus_(get_gpu_count()) {}
+    : rank_(rank), num_gpus_(get_gpu_count()) {
+    // Initialize speeds to default values so split_work functions without benchmarking.
+    gpu_speeds_.assign(num_gpus_, 1.0);
+    bs_gpu_speeds_.assign(num_gpus_, 1.0);
+    cpu_speed_ = 1.0;
+}
 
 // ── Benchmark ─────────────────────────────────────────────────────────────────
 void Worker::benchmark() {

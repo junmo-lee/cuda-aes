@@ -128,7 +128,7 @@ int main(int argc, char* argv[]) {
     } else {
         // ── WORKER ────────────────────────────────────────────────────────
         Worker worker(rank);
-        worker.benchmark();
+        // worker.benchmark(); // Skip benchmarking to start search immediately
 
         while (true) {
             WorkAssignment wa;
