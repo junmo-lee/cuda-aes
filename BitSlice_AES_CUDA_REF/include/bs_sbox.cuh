@@ -1,7 +1,14 @@
 #pragma once
 #include <stdint.h>
 
-// Bitsliced AES S-box: in-place on eight 32-bit lane packs (32 lanes).
+/**
+ * @brief Bitsliced AES S-box implementation.
+ * 
+ * Performs the S-box transformation in-place on eight 32-bit lane packs (32 lanes).
+ * This is a highly optimized Boolean circuit implementation.
+ * 
+ * @param r0..r7 [in,out] The 8 bit-slices representing the byte to be transformed.
+ */
 __device__ __forceinline__ void bs_sbox(uint32_t &r0, uint32_t &r1, uint32_t &r2, uint32_t &r3,
                                         uint32_t &r4, uint32_t &r5, uint32_t &r6, uint32_t &r7) {
     uint32_t y0 = (r0 ^ r1 ^ r2 ^ r3 ^ r6);

@@ -16,10 +16,21 @@
 #include <cstring>
 #include <algorithm>
 
+/**
+ * @brief Constructs a Worker object.
+ * 
+ * @param rank The MPI rank of this worker node.
+ */
 Worker::Worker(int rank)
     : rank_(rank), num_gpus_(get_gpu_count()) {}
 
 // ── Benchmark ─────────────────────────────────────────────────────────────────
+/**
+ * @brief Benchmarks all available computation devices (GPUs and CPU).
+ * 
+ * Measures the performance of standard GPU, bitsliced GPU, and CPU AES 
+ * implementations to inform work distribution.
+ */
 void Worker::benchmark() {
     LOG_INFO("Benchmarking devices…");
 
@@ -45,6 +56,16 @@ void Worker::benchmark() {
 }
 
 // ── Work splitting ────────────────────────────────────────────────────────────
+/**
+ * @brief Splits a total key range among available computation devices.
+ * 
+ * Distributes the work based on the measured benchmarks for each device 
+ * to achieve load balancing.
+ * 
+ * @param start The inclusive starting key of the total range.
+ * @param total The total number of keys in the range.
+ * @return A vector of DeviceRange structures detailing assignments.
+ */
 std::vector<Worker::DeviceRange>
 Worker::split_work(Key128 start, u64 total) const {
     // Use bitsliced GPU speeds for proportional allocation (that's what process() runs).
@@ -66,7 +87,7 @@ Worker::split_work(Key128 start, u64 total) const {
 
     u64 assigned = 0;
     for (int g = 0; g < num_gpus_; g++) {
-        u64 count = (u64)((gpu_speeds_[g] / total_speed) * total);
+        u64 count = (u64)((bs_gpu_speeds_[g] / total_speed) * total);
         if (count == 0) count = 1;
         ranges.push_back({DeviceRange::GPU, g, start, count});
         start    += count;
@@ -81,6 +102,16 @@ Worker::split_work(Key128 start, u64 total) const {
 }
 
 // ── Process ───────────────────────────────────────────────────────────────────
+/**
+ * @brief Processes a work assignment from the Master.
+ * 
+ * Splits the assigned key range among available GPUs and CPU threads, 
+ * executes the search, and returns the result.
+ * 
+ * @param wa The work assignment containing the target ciphertext, 
+ * plaintext, and key range.
+ * @return A WorkResult object indicating if the key was found.
+ */
 WorkResult Worker::process(const WorkAssignment& wa) {
     Block128 pt(wa.plaintext);
     Block128 ct(wa.ciphertext);

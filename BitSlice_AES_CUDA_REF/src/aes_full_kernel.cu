@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <cstdio> 
 #include <vector>
-  // printf
+
 // --- your project headers ---
 #include "bs_sbox.cuh"
 #include "bs_mixcol.cuh"
@@ -13,7 +13,11 @@
 #ifdef USE_GENERATED_RK
   #include "generated_rk.hpp"   // provides MyKey and rkbit_const<ROUND,SLICE>::value
 #else
-  // Define MyKey at global scope so RKBitConst can reference it
+  /**
+   * @brief Simple tag type for compile-time key bytes (fallback).
+   * 
+   * @tparam Ks The key bytes.
+   */
   template<unsigned char... Ks> struct StaticKey {
       static constexpr unsigned char data[sizeof...(Ks)] = { Ks... };
   };
@@ -24,7 +28,12 @@
   >;
 #endif
 
-// ---------------- Round-key bit at compile time ----------------
+/**
+ * @brief Round-key bit at compile time.
+ * 
+ * @tparam ROUND The round number (0-10).
+ * @tparam SLICE The bit slice index (0-127).
+ */
 template<int ROUND, int SLICE>
 struct RKBitConst {
 #ifdef USE_GENERATED_RK
@@ -42,7 +51,11 @@ struct RKBitConst {
 };
 
 
-// Final: SB -> SR(in-place, tiny) -> ARK10 -> store (already SR)
+/**
+ * @brief Performs the AES ShiftRows transformation in-place on a bitsliced state.
+ * 
+ * @param r [in,out] The 128-slice bitsliced state.
+ */
 __device__ __forceinline__ void shiftrows_inplace(uint32_t (&r)[128]) {
     uint32_t t;
     // row1 rotate left by 1: 1,5,9,13
@@ -57,7 +70,12 @@ __device__ __forceinline__ void shiftrows_inplace(uint32_t (&r)[128]) {
 }
 
 
-
+/**
+ * @brief Stores the bitsliced state to memory while applying the ShiftRows transformation.
+ * 
+ * @param r [in] The 128-slice bitsliced state.
+ * @param out [out] Pointer to the output memory.
+ */
 __device__ __forceinline__
 void store128_shiftrows(const uint32_t (&r)[128], uint32_t* out) {
     // SR byte map (SR index -> pre-SR source idx)
@@ -72,7 +90,13 @@ void store128_shiftrows(const uint32_t (&r)[128], uint32_t* out) {
 }
 
 
-
+/**
+ * @brief XORs a single bit-slice with a compile-time round key bit.
+ * 
+ * @tparam ROUND The round number.
+ * @tparam SLICE The bit slice index.
+ * @param x [in,out] The 32-lane bit-slice.
+ */
 template<int ROUND, int SLICE>
 __device__ __forceinline__ void addkey_slice(uint32_t &x) {
     if constexpr (RKBitConst<ROUND, SLICE>::value) {
@@ -81,12 +105,25 @@ __device__ __forceinline__ void addkey_slice(uint32_t &x) {
     }
 }
 
+/**
+ * @brief XORs the entire 128-slice state with a compile-time round key.
+ * 
+ * @tparam ROUND The round number.
+ * @tparam I The current slice index being processed.
+ * @param r [in,out] The 128-slice bitsliced state.
+ */
 template<int ROUND, int I>
 __device__ __forceinline__ void addkey_128(uint32_t (&r)[128]) {
     addkey_slice<ROUND, I>(r[I]);
     if constexpr (I + 1 < 128) addkey_128<ROUND, I+1>(r);
 }
 
+/**
+ * @brief Recursively applies the bitsliced S-box to all 16 bytes.
+ * 
+ * @tparam BYTE The current byte index (starts at 0).
+ * @param r [in,out] The 128-slice bitsliced state.
+ */
 template<int BYTE>
 __device__ __forceinline__ void subbytes_16(uint32_t (&r)[128]) {
     constexpr int base = BYTE * 8;
@@ -95,8 +132,13 @@ __device__ __forceinline__ void subbytes_16(uint32_t (&r)[128]) {
     if constexpr (BYTE + 1 < 16) subbytes_16<BYTE+1>(r);
 }
 
-// --- your implicit-SR round_main (as provided) ---
-// After ShiftRows, the columns are: {0,5,10,15}, {4,9,14,3}, {8,13,2,7}, {12,1,6,11}
+/**
+ * @brief Standard AES round implementation (Round 1-9) using implicit ShiftRows.
+ * 
+ * @tparam KS Key schedule type.
+ * @param r [in,out] The 128-slice bitsliced state.
+ * @param round_idx The current round number.
+ */
 template<typename KS>
 __device__ __forceinline__ void round_main(uint32_t (&r)[128], int round_idx) {
     subbytes_16<0>(r);
@@ -120,7 +162,12 @@ __device__ __forceinline__ void round_main(uint32_t (&r)[128], int round_idx) {
     }
 }
 
-// Final round: SB -> SR -> ARK (no MixColumns)
+/**
+ * @brief Final AES round implementation (Round 10).
+ * 
+ * @tparam KS Key schedule type.
+ * @param r [in,out] The 128-slice bitsliced state.
+ */
 template<typename KS>
 __device__ __forceinline__ void round_final(uint32_t (&r)[128]) {
     subbytes_16<0>(r);
@@ -139,7 +186,13 @@ __device__ __forceinline__ void round_final(uint32_t (&r)[128]) {
     for (int i = 0; i < 128; ++i) r[i] = t[i];
 }
 
-// Round body with in-place SR (low regs), then contiguous MC, then normal ARK
+/**
+ * @brief AES round implementation using in-place ShiftRows.
+ * 
+ * @tparam KS Key schedule type.
+ * @param r [in,out] The 128-slice bitsliced state.
+ * @param round_idx The current round number.
+ */
 template<typename KS>
 __device__ __forceinline__ void round_main_sr_inplace(uint32_t (&r)[128], int round_idx) {
     subbytes_16<0>(r);        // S-box on all 16 bytes (bitsliced)
@@ -161,7 +214,13 @@ __device__ __forceinline__ void round_main_sr_inplace(uint32_t (&r)[128], int ro
     }
 }
 
-// Rounds 1..9: SB -> (SR→MC fused to SR layout) -> ARK (SR keys)
+/**
+ * @brief AES round implementation using fused ShiftRows and MixColumns.
+ * 
+ * @tparam KS Key schedule type.
+ * @param r [in,out] The 128-slice bitsliced state.
+ * @param round_idx The current round number.
+ */
 template<typename KS>
 __device__ __forceinline__ void round_main_fused(uint32_t (&r)[128], int round_idx) {
     subbytes_16<0>(r);
@@ -181,7 +240,13 @@ __device__ __forceinline__ void round_main_fused(uint32_t (&r)[128], int round_i
     }
 }
 
-// Final round: SB -> SR(in-place) -> ARK10, then store
+/**
+ * @brief Final AES round implementation using in-place ShiftRows.
+ * 
+ * @tparam KS Key schedule type.
+ * @param r [in,out] The 128-slice bitsliced state.
+ * @param out [out] Pointer to the output memory.
+ */
 template<typename KS>
 __device__ __forceinline__ void round_final_sr_inplace(uint32_t (&r)[128], uint32_t* out) {
     subbytes_16<0>(r);
@@ -191,12 +256,19 @@ __device__ __forceinline__ void round_final_sr_inplace(uint32_t (&r)[128], uint3
 }
 
 
-
 // -------- Debug dump plumbing --------
 #ifndef DBG_DUMPS_PER_GROUP
 #define DBG_DUMPS_PER_GROUP 11   // ARK@0..10
 #endif
 
+/**
+ * @brief Dumps the current bitsliced state to a debug buffer.
+ * 
+ * @param dbg Pointer to the debug buffer.
+ * @param group_idx The index of the lane group.
+ * @param stage The current stage (0..39).
+ * @param r The current bitsliced state.
+ */
 __device__ __forceinline__
 void dump_stage(uint32_t* dbg, unsigned long long group_idx, int stage, const uint32_t r[128]) {
     if (!dbg) return;
@@ -205,8 +277,15 @@ void dump_stage(uint32_t* dbg, unsigned long long group_idx, int stage, const ui
     for (int i=0; i<128; ++i) base[i] = r[i];
 }
 
-// ---------------- Kernel ----------------
-// helper: write current r[128] for this group into dbg[groups*128] when stage matches
+/**
+ * @brief Conditionally dumps the current bitsliced state if it matches the target stage.
+ * 
+ * @param dbg Pointer to the debug buffer.
+ * @param gid The global ID of the lane group.
+ * @param stage The current stage.
+ * @param target The target stage to dump.
+ * @param r The current bitsliced state.
+ */
 __device__ __forceinline__
 void dump_if(uint32_t* dbg, unsigned long long gid, int stage, int target, const uint32_t r[128]) {
     if (!dbg || stage != target) return;
@@ -215,7 +294,12 @@ void dump_if(uint32_t* dbg, unsigned long long gid, int stage, int target, const
     for (int i=0;i<128;++i) base[i] = r[i];
 }
 
-// (optional) make a ShiftRows view without changing r[] (for debug)
+/**
+ * @brief Creates a ShiftRows view of the bitsliced state into a temporary buffer.
+ * 
+ * @param r [in] The source bitsliced state.
+ * @param t [out] The destination bitsliced state (ShiftRows order).
+ */
 __device__ __forceinline__
 void make_shiftrows_view(const uint32_t r[128], uint32_t t[128]) {
     // bytes map after SR: {0,5,10,15, 4,9,14,3, 8,13,2,7, 12,1,6,11}
@@ -228,6 +312,16 @@ void make_shiftrows_view(const uint32_t r[128], uint32_t t[128]) {
     }
 }
 
+/**
+ * @brief CUDA kernel for bitsliced AES-128 encryption with debug dumping.
+ * 
+ * @tparam KeyType The type containing the AES key bytes.
+ * @param in_slices Input bitsliced state.
+ * @param out_slices Output bitsliced state (ciphertext).
+ * @param groups Number of 128-slice groups.
+ * @param dbg_slices Debug output buffer.
+ * @param target_stage The stage to dump (0-39).
+ */
 template<typename KeyType>
 __global__ void aes128_bs32_full_debug(const uint32_t* __restrict__ in_slices,
                                  uint32_t* __restrict__ out_slices,
@@ -235,7 +329,7 @@ __global__ void aes128_bs32_full_debug(const uint32_t* __restrict__ in_slices,
                                  uint32_t* __restrict__ dbg_slices, // points to groups*128 u32
                                  int target_stage)                  // which step to dump
 {
-    unsigned long long tid = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned long long tid = (unsigned long long)blockIdx.x * blockDim.x + threadIdx.x;
     if (tid >= groups) return;
     using KS = typename MakeSchedule<KeyType>::type;
 
@@ -295,7 +389,15 @@ __global__ void aes128_bs32_full_debug(const uint32_t* __restrict__ in_slices,
         // ARK_10 (== ciphertext) // store ciphertext:
         store128<0>(sr10, out);
 }
-// ==================== Production kernel (no debug) ====================
+
+/**
+ * @brief Standard CUDA kernel for bitsliced AES-128 encryption.
+ * 
+ * @tparam KeyType The type containing the AES key bytes.
+ * @param in_slices Input bitsliced state.
+ * @param out_slices Output bitsliced state (ciphertext).
+ * @param groups Number of 128-slice groups.
+ */
 template<typename KeyType>
 __global__ void aes128_bs32_full(const uint32_t* __restrict__ in_slices,
                                  uint32_t* __restrict__ out_slices,
@@ -337,6 +439,16 @@ __global__ void aes128_bs32_full(const uint32_t* __restrict__ in_slices,
     }                                                           \
 } while(0)
 
+/**
+ * @brief Host function to run the bitsliced AES-128 encryption.
+ * 
+ * @param h_in_u32 Host pointer to the input bitsliced state.
+ * @param h_out_u32 Host pointer to store the output bitsliced state.
+ * @param groups Number of 128-slice groups.
+ * @param grid CUDA grid dimensions.
+ * @param block CUDA block dimensions.
+ * @return 0 on success, -1 on CUDA error.
+ */
 extern "C" int run_aes_bs_full(const uint32_t* h_in_u32,
                                uint32_t* h_out_u32,
                                unsigned long long groups,
@@ -420,7 +532,18 @@ extern "C" int run_aes_bs_full(const uint32_t* h_in_u32,
 
 
 
-// host-side runner for one stage
+/**
+ * @brief Host function to run bitsliced AES-128 and capture a specific stage.
+ * 
+ * @param h_in_u32 Host pointer to input bitsliced state.
+ * @param h_out_u32 Host pointer to output bitsliced state.
+ * @param groups Number of 128-slice groups.
+ * @param grid CUDA grid dimensions.
+ * @param block CUDA block dimensions.
+ * @param target_stage The stage to dump (0..39).
+ * @param h_dbg [out] Vector to store the captured debug stage data.
+ * @return 0 on success, -1 on failure.
+ */
 extern "C" int run_aes_bs_full_stage(const uint32_t* h_in_u32,
                           uint32_t* h_out_u32,
                           unsigned long long groups,
@@ -454,6 +577,18 @@ extern "C" int run_aes_bs_full_stage(const uint32_t* h_in_u32,
 }
 
 
+/**
+ * @brief Host function to run bitsliced AES-128 and dump a specific stage to a provided buffer.
+ * 
+ * @param h_in_u32 Host pointer to input bitsliced state.
+ * @param h_out_u32 Host pointer to output bitsliced state.
+ * @param groups Number of 128-slice groups.
+ * @param grid CUDA grid dimensions.
+ * @param block CUDA block dimensions.
+ * @param target_stage The stage to dump (0..39).
+ * @param h_dbg_out [out] Host buffer to store the captured stage data.
+ * @return 0 on success, -1 on failure.
+ */
 extern "C" int run_aes_bs_full_dump(const uint32_t* h_in_u32,
                                     uint32_t*       h_out_u32,
                                     unsigned long long groups,
@@ -505,5 +640,3 @@ extern "C" int run_aes_bs_full_dump(const uint32_t* h_in_u32,
     cudaFree(d_dbg);
     return 0;
 }
-
-

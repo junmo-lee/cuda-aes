@@ -35,6 +35,14 @@ extern "C" int run_aes_bs_bruteforce(
 
 // ── Utility helpers ──────────────────────────────────────────────────────────
 
+/**
+ * @brief Converts a hexadecimal string to a byte array.
+ * 
+ * @param hex The input hexadecimal string.
+ * @param out [out] The output byte array.
+ * @param n The number of bytes to extract.
+ * @return true if conversion is successful, false otherwise.
+ */
 static bool hex_to_bytes(const char* hex, uint8_t* out, int n)
 {
     if ((int)strlen(hex) != n * 2) return false;
@@ -52,6 +60,12 @@ static bool hex_to_bytes(const char* hex, uint8_t* out, int n)
     return true;
 }
 
+/**
+ * @brief Converts a 16-byte array to four 32-bit big-endian words.
+ * 
+ * @param b The input 16-byte array.
+ * @param w [out] The output array of four 32-bit words.
+ */
 static void bytes_to_words_be(const uint8_t b[16], uint32_t w[4])
 {
     for (int i = 0; i < 4; i++)
@@ -59,6 +73,13 @@ static void bytes_to_words_be(const uint8_t b[16], uint32_t w[4])
              | ((uint32_t)b[i*4+2] <<  8) |  (uint32_t)b[i*4+3];
 }
 
+/**
+ * @brief Prints a label and a byte array in hexadecimal format.
+ * 
+ * @param label The label to print before the hex string.
+ * @param b The byte array to print.
+ * @param n The number of bytes to print.
+ */
 static void print_hex(const char* label, const uint8_t* b, int n)
 {
     printf("%-12s", label);

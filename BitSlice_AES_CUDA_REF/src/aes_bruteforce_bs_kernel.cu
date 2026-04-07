@@ -25,6 +25,11 @@
 
 // ── Local copies of helpers (defined in aes_full_kernel.cu but not exported) ─
 
+/**
+ * @brief Performs the AES ShiftRows transformation on a bitsliced state.
+ * 
+ * @param r [in,out] The 128-slice bitsliced state.
+ */
 __device__ __forceinline__ void shiftrows_bf(uint32_t (&r)[128])
 {
     uint32_t t;
@@ -45,6 +50,12 @@ __device__ __forceinline__ void shiftrows_bf(uint32_t (&r)[128])
     }
 }
 
+/**
+ * @brief Recursively applies the bitsliced S-box to the entire state.
+ * 
+ * @tparam BYTE The current byte index (starts at 0).
+ * @param r [in,out] The 128-slice bitsliced state.
+ */
 template<int BYTE>
 __device__ __forceinline__ void subbytes_bf(uint32_t (&r)[128])
 {
@@ -54,19 +65,25 @@ __device__ __forceinline__ void subbytes_bf(uint32_t (&r)[128])
     if constexpr (BYTE + 1 < 16) subbytes_bf<BYTE+1>(r);
 }
 
-// XOR the entire state with a round key (both in bitsliced form)
+/**
+ * @brief XORs the entire state with a round key (both in bitsliced form).
+ * 
+ * @param r [in,out] The 128-slice bitsliced state.
+ * @param rk [in] The 128-slice bitsliced round key.
+ */
 __device__ __forceinline__ void addkey_bs(uint32_t (&r)[128],
                                           const uint32_t (&rk)[128])
 {
     for (int i = 0; i < 128; i++) r[i] ^= rk[i];
 }
 
-// -----------------------------------------------------------------------------
-// check_match_bs
-//
-// After encryption, determine which of the 32 lanes produced `expected`.
-// Returns a lane bitmask: bit j is set iff lane j's ciphertext == expected.
-// -----------------------------------------------------------------------------
+/**
+ * @brief After encryption, determine which of the 32 lanes produced the expected ciphertext.
+ * 
+ * @param r [in] The 128-slice bitsliced state (ciphertext).
+ * @param expected [in] The target 16-byte ciphertext.
+ * @return A lane bitmask where bit j is set if lane j's ciphertext matches the expected value.
+ */
 __device__ __forceinline__ uint32_t check_match_bs(
         const uint32_t (&r)[128],
         const uint8_t   expected[16])
@@ -84,18 +101,18 @@ __device__ __forceinline__ uint32_t check_match_bs(
     return match;
 }
 
-// =============================================================================
-// aes128_bs32_bruteforce
-//
-// Parameters
-// ----------
-// plaintext   : 16-byte known plaintext (device pointer, same for all lanes)
-// ciphertext  : 16-byte target ciphertext (device pointer)
-// base_key    : 4-word big-endian starting key (inclusive)
-// total_keys  : number of candidate keys to test across the whole launch
-// found_key   : output – 4 words (big-endian) of the found key
-// found_flag  : output – atomically set to 1 when a key is found
-// =============================================================================
+/**
+ * @brief CUDA kernel for bitsliced AES-128 brute-force key search.
+ * 
+ * Each thread tests 32 consecutive keys.
+ * 
+ * @param plaintext Known 16-byte plaintext.
+ * @param ciphertext Target 16-byte ciphertext.
+ * @param base_key Starting 128-bit key (4 big-endian 32-bit words).
+ * @param total_keys Total number of keys to test.
+ * @param found_key [out] The found key (4 big-endian 32-bit words).
+ * @param found_flag [in,out] Atomic flag set to 1 if the key is found.
+ */
 __global__ void aes128_bs32_bruteforce(
         const uint8_t*  __restrict__ plaintext,
         const uint8_t*  __restrict__ ciphertext,
@@ -178,7 +195,7 @@ __global__ void aes128_bs32_bruteforce(
 
         // Reconstruct the full key for this lane.
         const uint64_t klo = ((uint64_t)batch_base[2] << 32) | batch_base[3];
-        const uint64_t khi = ((uint64_t)batch_base[0] << 32) | batch_base[1];
+        const uint64_t khi = ((uint64_t)batch_base[0] << 32) | base_key[1];
         const uint64_t klo2 = klo + (uint64_t)lane;
         const uint64_t khi2 = khi + (klo2 < (uint64_t)lane ? 1ull : 0ull);
 
@@ -208,16 +225,18 @@ __global__ void aes128_bs32_bruteforce(
     }                                                                    \
 } while(0)
 
-// -----------------------------------------------------------------------------
-// run_aes_bs_bruteforce
-//
-// Launch the bitsliced brute-force kernel for the key range [key_start, key_end).
-//
-// Returns:
-//   1  – key found; found_key[4] is filled with the 4-word big-endian key.
-//   0  – key not found in the given range.
-//  -1  – CUDA error.
-// -----------------------------------------------------------------------------
+/**
+ * @brief Host function to run the bitsliced brute-force key search.
+ * 
+ * @param plaintext Known 16-byte plaintext.
+ * @param ciphertext Target 16-byte ciphertext.
+ * @param key_start Starting 128-bit key (4 big-endian 32-bit words).
+ * @param key_end Ending 128-bit key (exclusive, 4 big-endian 32-bit words).
+ * @param found_key [out] The found key (4 big-endian 32-bit words).
+ * @param grid CUDA grid dimensions.
+ * @param block CUDA block dimensions.
+ * @return 1 if key found, 0 if not found, -1 on CUDA error.
+ */
 extern "C" int run_aes_bs_bruteforce(
         const uint8_t  plaintext[16],
         const uint8_t  ciphertext[16],

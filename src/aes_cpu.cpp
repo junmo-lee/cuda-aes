@@ -15,7 +15,16 @@
 #include <cstring>
 
 // ── AES-NI key expansion ──────────────────────────────────────────────────────
-// expand one round key using the aeskeygenassist result
+/**
+ * @brief Expands one round key using the result of the AESKEYGENASSIST instruction.
+ * 
+ * Performs the necessary shuffle and XOR operations to generate the next 128-bit
+ * round key from the previous one and the generated assistance value.
+ * 
+ * @param key The previous round key.
+ * @param kgen The result of _mm_aeskeygenassist_si128.
+ * @return The expanded 128-bit round key.
+ */
 static __m128i expand_key_step(__m128i key, __m128i kgen) {
     kgen = _mm_shuffle_epi32(kgen, 0xFF);
     key  = _mm_xor_si128(key, _mm_slli_si128(key, 4));
@@ -24,7 +33,14 @@ static __m128i expand_key_step(__m128i key, __m128i kgen) {
     return _mm_xor_si128(key, kgen);
 }
 
-// Expand 128-bit key into 11 round keys (for encryption)
+/**
+ * @brief Expands a 128-bit key into 11 round keys for AES-128 encryption.
+ * 
+ * Uses AES-NI intrinsics to perform the standard AES-128 key schedule.
+ * 
+ * @param key The 16-byte (128-bit) input key.
+ * @param rk Array of 11 __m128i elements to store the expanded round keys.
+ */
 static void aes128_key_schedule(const u8 key[16], __m128i rk[11]) {
     rk[0]  = _mm_loadu_si128((__m128i*)key);
     rk[1]  = expand_key_step(rk[0],  _mm_aeskeygenassist_si128(rk[0],  0x01));
@@ -39,7 +55,15 @@ static void aes128_key_schedule(const u8 key[16], __m128i rk[11]) {
     rk[10] = expand_key_step(rk[9],  _mm_aeskeygenassist_si128(rk[9],  0x36));
 }
 
-// AES-128 encrypt one block
+/**
+ * @brief Encrypts a single 128-bit block using AES-128.
+ * 
+ * Employs AES-NI intrinsics for high-performance encryption.
+ * 
+ * @param block The 128-bit block (plaintext) to encrypt.
+ * @param rk The 11 expanded round keys.
+ * @return The 128-bit encrypted block (ciphertext).
+ */
 static __m128i aes128_encrypt(__m128i block, const __m128i rk[11]) {
     block = _mm_xor_si128(block, rk[0]);
     block = _mm_aesenc_si128   (block, rk[1]);
@@ -56,6 +80,21 @@ static __m128i aes128_encrypt(__m128i block, const __m128i rk[11]) {
 }
 
 // ── Brute-force ───────────────────────────────────────────────────────────────
+/**
+ * @brief Performs CPU-based brute-force search for an AES-128 key.
+ * 
+ * Iterates through a range of keys, encrypting the given plaintext and comparing
+ * it to the target ciphertext until the key is found or the range is exhausted.
+ * 
+ * @param plaintext The known plaintext block.
+ * @param ciphertext The target ciphertext block.
+ * @param key_start The starting key for the search.
+ * @param num_keys The number of keys to test in this range.
+ * @param found_key Output parameter to store the key if found.
+ * @param stop_flag Atomic flag to signal early termination.
+ * @param keys_tried Atomic counter to track the total number of keys processed.
+ * @return True if the key was found, false otherwise.
+ */
 bool cpu_bruteforce(
     const Block128&    plaintext,
     const Block128&    ciphertext,
@@ -98,6 +137,14 @@ bool cpu_bruteforce(
 }
 
 // ── Benchmark ─────────────────────────────────────────────────────────────────
+/**
+ * @brief Benchmarks the CPU's AES-128 encryption performance.
+ * 
+ * Measures how many keys per second the CPU can process using AES-NI.
+ * 
+ * @param duration_ms The target duration for the benchmark in milliseconds.
+ * @return The measured performance in keys per second.
+ */
 double cpu_benchmark(int duration_ms) {
     u8 key[16] = {};
     u8 pt[16]  = {};

@@ -19,6 +19,13 @@ extern "C" int run_aes_bs_full_dump(const uint32_t* h_in_u32,
                                     int target_stage,
                                     uint32_t* h_dbg_out /* groups*128 */);
 
+/**
+ * @brief Reads the entire content of a file into a byte vector.
+ * 
+ * @param path The path to the file to read.
+ * @param buf [out] The vector to store the file content.
+ * @return true if reading is successful, false otherwise.
+ */
 static bool read_all(const std::string& path, std::vector<uint8_t>& buf) {
     std::ifstream f(path, std::ios::binary);
     if (!f) { fprintf(stderr, "open fail: %s\n", path.c_str()); return false; }
@@ -34,6 +41,14 @@ static bool read_all(const std::string& path, std::vector<uint8_t>& buf) {
     }
     return true;
 }
+
+/**
+ * @brief Writes the entire content of a byte vector to a file.
+ * 
+ * @param path The path to the file to write.
+ * @param buf The vector containing the data to write.
+ * @return true if writing is successful, false otherwise.
+ */
 static bool write_all(const std::string& path, const std::vector<uint8_t>& buf) {
     std::ofstream f(path, std::ios::binary | std::ios::trunc);
     if (!f) { fprintf(stderr, "open for write fail: %s\n", path.c_str()); return false; }
@@ -43,6 +58,13 @@ static bool write_all(const std::string& path, const std::vector<uint8_t>& buf) 
     }
     return true;
 }
+
+/**
+ * @brief Parses a string in "XxYxZ" format into a dim3 structure.
+ * 
+ * @param s The input string (e.g., "32x1x1").
+ * @return The parsed dim3 structure.
+ */
 static dim3 parse_xyz(const char* s) {
     unsigned int x=1,y=1,z=1; char sep;
     std::stringstream ss(s);
@@ -55,13 +77,27 @@ static dim3 parse_xyz(const char* s) {
     }
     return dim3(x,y,z);
 }
+
+/**
+ * @brief Calculates the total number of threads in a CUDA grid.
+ * 
+ * @param grid The grid dimensions.
+ * @param block The block dimensions.
+ * @return The total number of threads.
+ */
 static unsigned long long total_threads(dim3 grid, dim3 block) {
     return (unsigned long long)grid.x * block.x *
            (unsigned long long)grid.y * block.y *
            (unsigned long long)grid.z * block.z;
 }
 
-// Optional: pretty names for stage indices (0..39)
+/**
+ * @brief Returns a descriptive name for a given AES transformation stage.
+ * 
+ * @param st The stage index (0..39).
+ * @param out_round [out] Optional pointer to store the round number.
+ * @return A descriptive string for the stage.
+ */
 static const char* stage_name(int st, int* out_round=nullptr) {
     if (st == 0) { if(out_round)*out_round=0; return "r0_ark"; }
     if (1 <= st && st <= 36) {
@@ -81,6 +117,11 @@ static const char* stage_name(int st, int* out_round=nullptr) {
     return "stage";
 }
 
+/**
+ * @brief Prints the usage information for the program.
+ * 
+ * @param prog The name of the executable.
+ */
 static void usage(const char* prog) {
     fprintf(stderr,
       "Usage:\n"

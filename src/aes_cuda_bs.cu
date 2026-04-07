@@ -50,6 +50,14 @@
 
 // ── Bitsliced helpers (local to this TU) ──────────────────────────────────────
 
+/**
+ * @brief Performs the AES ShiftRows operation in bitsliced format.
+ * 
+ * Operates on a 32-lane bitsliced state, shifting the bytes according to the
+ * AES specification.
+ * 
+ * @param r The 128-word bitsliced AES state (32 lanes).
+ */
 __device__ __forceinline__ void bs_shiftrows(uint32_t (&r)[128])
 {
     uint32_t t;
@@ -70,6 +78,14 @@ __device__ __forceinline__ void bs_shiftrows(uint32_t (&r)[128])
     }
 }
 
+/**
+ * @brief Performs the AES SubBytes operation in bitsliced format for a single byte.
+ * 
+ * Uses a compile-time template to iterate through all 16 bytes of the state.
+ * 
+ * @tparam BYTE The current byte index (0-15) being processed.
+ * @param r The 128-word bitsliced AES state (32 lanes).
+ */
 template<int BYTE>
 __device__ __forceinline__ void bs_subbytes(uint32_t (&r)[128])
 {
@@ -79,13 +95,30 @@ __device__ __forceinline__ void bs_subbytes(uint32_t (&r)[128])
     if constexpr (BYTE + 1 < 16) bs_subbytes<BYTE+1>(r);
 }
 
+/**
+ * @brief Performs the AES AddRoundKey operation in bitsliced format.
+ * 
+ * XORs the bitsliced round key into the bitsliced state.
+ * 
+ * @param r The 128-word bitsliced AES state (32 lanes).
+ * @param rk The 128-word bitsliced round key.
+ */
 __device__ __forceinline__ void bs_addkey(uint32_t (&r)[128],
                                           const uint32_t (&rk)[128])
 {
     for (int i = 0; i < 128; i++) r[i] ^= rk[i];
 }
 
-// Returns a 32-bit lane mask: bit j set iff lane j's ciphertext == expected.
+/**
+ * @brief Checks for a match between the bitsliced state and the expected ciphertext.
+ * 
+ * Compares each of the 32 lanes in the bitsliced state against the target
+ * ciphertext block.
+ * 
+ * @param r The 128-word bitsliced AES state (32 lanes).
+ * @param expected The 16-byte target ciphertext block.
+ * @return A 32-bit mask where bit j is set if lane j matches the expected ciphertext.
+ */
 __device__ __forceinline__ uint32_t bs_check_match(
         const uint32_t (&r)[128],
         const uint8_t   expected[16])
@@ -103,6 +136,13 @@ __device__ __forceinline__ uint32_t bs_check_match(
     return match;
 }
 
+/**
+ * @brief Prints the AES state for debugging (lane 0 only).
+ * 
+ * @param label A label to identify the state being printed.
+ * @param round The current AES round number.
+ * @param r The 128-word bitsliced AES state.
+ */
 __device__ void debug_print_state(const char* label, int round, const uint32_t r[128]) {
     uint8_t out[16];
     for (int byte_idx = 0; byte_idx < 16; byte_idx++) {
@@ -119,6 +159,13 @@ __device__ void debug_print_state(const char* label, int round, const uint32_t r
     printf("\n");
 }
 
+/**
+ * @brief Prints the round key for debugging (lane 0 only).
+ * 
+ * @param label A label to identify the key being printed.
+ * @param round The current AES round number.
+ * @param rk The 128-word bitsliced round key.
+ */
 __device__ void debug_print_rk(const char* label, int round, const uint32_t rk[128]) {
     uint8_t out[16];
     for (int byte_idx = 0; byte_idx < 16; byte_idx++) {
@@ -136,11 +183,18 @@ __device__ void debug_print_rk(const char* label, int round, const uint32_t rk[1
 }
 
 // ── Bitsliced AES-128 brute-force kernel ──────────────────────────────────────
-//
-// Each thread tests 32 consecutive keys starting at base_key + tid*32.
-// plaintext/ciphertext are 16-byte device arrays.
-// found_flag is set via atomicCAS when a matching key is found.
-//
+/**
+ * @brief Bitsliced AES-128 brute-force kernel.
+ * 
+ * Each thread tests 32 consecutive keys in parallel using bitslicing.
+ * 
+ * @param plaintext Known 16-byte plaintext (device pointer).
+ * @param ciphertext Target 16-byte ciphertext (device pointer).
+ * @param base_key Starting 128-bit key for this kernel launch (4x32-bit).
+ * @param total_keys Total number of keys to test in this launch.
+ * @param found_key Device pointer to store the 128-bit key if found.
+ * @param found_flag Device pointer to an integer flag set when key is found.
+ */
 __global__ void aes128_bs32_bruteforce_kernel(
         const uint8_t*  __restrict__ plaintext,
         const uint8_t*  __restrict__ ciphertext,
@@ -255,6 +309,22 @@ __global__ void aes128_bs32_bruteforce_kernel(
 }
 
 // ── Host-side GPU brute-force (bitsliced) ────────────────────────────────────
+/**
+ * @brief Host-side wrapper for bitsliced GPU brute-force search.
+ * 
+ * Manages device memory, kernel launches, and result retrieval for the 
+ * bitsliced AES brute-force engine.
+ * 
+ * @param device_id The CUDA device index to use.
+ * @param plaintext Known plaintext block.
+ * @param ciphertext Target ciphertext block.
+ * @param key_start Starting key for the search.
+ * @param num_keys Number of keys to test.
+ * @param found_key Output parameter for the found key.
+ * @param stop_flag Atomic flag to signal early termination.
+ * @param keys_tried Atomic counter for tracking progress.
+ * @return True if key was found, false otherwise.
+ */
 bool gpu_bruteforce_bs(
     int                device_id,
     const Block128&    plaintext,
@@ -340,6 +410,13 @@ bool gpu_bruteforce_bs(
 }
 
 // ── Benchmark (bitsliced) ─────────────────────────────────────────────────────
+/**
+ * @brief Benchmarks the bitsliced GPU AES performance.
+ * 
+ * @param device_id The CUDA device index to benchmark.
+ * @param duration_ms Target duration for the benchmark in milliseconds.
+ * @return Measured performance in keys per second.
+ */
 double gpu_benchmark_bs(int device_id, int duration_ms) {
     CUDA_CHECK(cudaSetDevice(device_id));
 

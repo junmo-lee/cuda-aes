@@ -5,6 +5,9 @@
 
 // ---------------- Compile-time AES-128 key schedule ----------------
 
+/**
+ * @brief AES S-box table used for key expansion.
+ */
 static constexpr unsigned char AES_SBOX_KS[256] = {
     0x63,0x7C,0x77,0x7B,0xF2,0x6B,0x6F,0xC5,0x30,0x01,0x67,0x2B,0xFE,0xD7,0xAB,0x76,
     0xCA,0x82,0xC9,0x7D,0xFA,0x59,0x47,0xF0,0xAD,0xD4,0xA2,0xAF,0x9C,0xA4,0x72,0xC0,
@@ -23,12 +26,30 @@ static constexpr unsigned char AES_SBOX_KS[256] = {
     0xe1,0xf8,0x98,0x11,0x69,0xd9,0x8e,0x94,0x9b,0x1e,0x87,0xe9,0xce,0x55,0x28,0xdf,
     0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16
 };
+
+/**
+ * @brief Round constants used in AES key expansion.
+ */
 static constexpr unsigned char RCON[11] = {
-    0x00,0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1B,0x36
+    0x00,0x01,0x02,0x04,0x08,10,0x20,0x40,0x80,0x1B,0x36
 };
+
+/**
+ * @brief Performs a circular left shift (rotate) of 8 bits on a 32-bit word.
+ * 
+ * @param w The 32-bit word to rotate.
+ * @return The rotated 32-bit word.
+ */
 __host__ __device__ constexpr std::uint32_t rotl8(std::uint32_t w) {
     return ((w << 8) | (w >> 24)) & 0xFFFFFFFFu;
 }
+
+/**
+ * @brief Applies the AES S-box transformation to each byte of a 32-bit word.
+ * 
+ * @param w The 32-bit word to transform.
+ * @return The transformed 32-bit word.
+ */
 __host__ __device__ constexpr std::uint32_t subword(std::uint32_t w) {
     return (std::uint32_t)AES_SBOX_KS[(w >> 24) & 0xFF] << 24
          | (std::uint32_t)AES_SBOX_KS[(w >> 16) & 0xFF] << 16
@@ -36,9 +57,22 @@ __host__ __device__ constexpr std::uint32_t subword(std::uint32_t w) {
          | (std::uint32_t)AES_SBOX_KS[(w      ) & 0xFF];
 }
 
+/**
+ * @brief Template class for compile-time AES-128 key schedule generation.
+ * 
+ * @tparam KeyBytes The 16 bytes of the AES-128 key.
+ */
 template<unsigned char... KeyBytes>
 struct Aes128KeySchedule {
     static_assert(sizeof...(KeyBytes) == 16, "AES-128 needs 16 key bytes");
+
+    /**
+     * @brief Computes a specific byte of the round key at compile time.
+     * 
+     * @param r The round number (0-10).
+     * @param b The byte index within the round key (0-15).
+     * @return The value of the requested round key byte.
+     */
     __host__ __device__ static constexpr unsigned char rk_byte(int r, int b) {
         std::uint32_t w[44];
         const unsigned char key[16] = { KeyBytes... };
@@ -57,6 +91,14 @@ struct Aes128KeySchedule {
         int shift = 24 - 8*(b%4);
         return (unsigned char)((word >> shift) & 0xFF);
     }
+
+    /**
+     * @brief Retrieves a specific bit from the round key at compile time.
+     * 
+     * @tparam ROUND The round number (0-10).
+     * @tparam SLICE The bit slice index (0-127).
+     * @return The value of the requested bit (true for 1, false for 0).
+     */
     template<int ROUND, int SLICE>
     __host__ __device__ static constexpr bool rk_bit() {
         constexpr int BYTE = SLICE / 8;
@@ -65,6 +107,18 @@ struct Aes128KeySchedule {
     }
 };
 
+/**
+ * @brief Helper template to extract the Aes128KeySchedule from a type-wrapped key.
+ * 
+ * @tparam T The type containing the key bytes.
+ */
 template<typename T> struct MakeSchedule;
+
+/**
+ * @brief Specialization of MakeSchedule for CTKey types.
+ * 
+ * @tparam C The CTKey template class.
+ * @tparam Bytes The key bytes.
+ */
 template<template<unsigned char...> class C, unsigned char... Bytes>
 struct MakeSchedule<C<Bytes...>> { using type = Aes128KeySchedule<Bytes...>; };

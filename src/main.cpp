@@ -27,6 +27,13 @@
 #include <stdexcept>
 
 // ── Hex parsing ───────────────────────────────────────────────────────────────
+/**
+ * @brief Converts a hexadecimal character to its numerical nibble value.
+ * 
+ * @param c The hexadecimal character ('0'-'9', 'a'-'f', 'A'-'F').
+ * @return The 4-bit nibble value.
+ * @throws std::invalid_argument If the character is not a valid hex digit.
+ */
 static u8 hex_nibble(char c) {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'a' && c <= 'f') return c - 'a' + 10;
@@ -34,6 +41,13 @@ static u8 hex_nibble(char c) {
     throw std::invalid_argument(std::string("bad hex char: ") + c);
 }
 
+/**
+ * @brief Parses a 32-character hexadecimal string into a 128-bit block.
+ * 
+ * @param hex The hexadecimal string to parse.
+ * @return A Block128 object.
+ * @throws std::invalid_argument If the string length is incorrect.
+ */
 static Block128 parse_block(const char* hex) {
     if (strlen(hex) != 32) throw std::invalid_argument("need 32 hex chars");
     Block128 b;
@@ -42,6 +56,13 @@ static Block128 parse_block(const char* hex) {
     return b;
 }
 
+/**
+ * @brief Parses a 32-character hexadecimal string into a 128-bit key.
+ * 
+ * @param hex The hexadecimal string to parse.
+ * @return A Key128 object.
+ * @throws std::invalid_argument If the string length is incorrect.
+ */
 static Key128 parse_key(const char* hex) {
     if (strlen(hex) != 32) throw std::invalid_argument("need 32 hex chars");
     u8 b[16];
@@ -63,6 +84,16 @@ static const char* DEFAULT_KS = "2b7e151628aed2a6abf7158809cf4f00";
 static const char* DEFAULT_KE = "2b7e151628aed2a6abf7158809cf4f40";
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+/**
+ * @brief Main entry point for the MPI-based hybrid AES brute-force search.
+ * 
+ * Orchestrates the distribution of work among MPI ranks and initiates
+ * searching on both CPU and GPU resources.
+ * 
+ * @param argc Argument count.
+ * @param argv Argument vector.
+ * @return 0 on success, 1 on error.
+ */
 int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
 

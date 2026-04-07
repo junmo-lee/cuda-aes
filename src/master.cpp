@@ -10,19 +10,43 @@
 #include <vector>
 #include <chrono>
 
+/**
+ * @brief Constructs the Master object.
+ * 
+ * @param num_workers The number of worker processes (MPI ranks).
+ */
 Master::Master(int num_workers) : num_workers_(num_workers) {}
 
 // ── MPI send helpers ──────────────────────────────────────────────────────────
+/**
+ * @brief Sends a work assignment to a specific worker.
+ * 
+ * @param dest The MPI rank of the destination worker.
+ * @param wa The work assignment data structure.
+ */
 void Master::send_work(int dest, const WorkAssignment& wa) {
     MPI_Send(&wa, sizeof(WorkAssignment), MPI_BYTE, dest, TAG_WORK, MPI_COMM_WORLD);
 }
 
+/**
+ * @brief Sends a STOP signal to a specific worker.
+ * 
+ * Signals the worker to terminate its search and exit.
+ * 
+ * @param dest The MPI rank of the destination worker.
+ */
 void Master::send_stop(int dest) {
     WorkAssignment stop;
     memset(&stop, 0, sizeof(stop));  // all-zero key_end = STOP signal
     MPI_Send(&stop, sizeof(WorkAssignment), MPI_BYTE, dest, TAG_WORK, MPI_COMM_WORLD);
 }
 
+/**
+ * @brief Receives a work result from a specific worker.
+ * 
+ * @param src The MPI rank of the source worker.
+ * @return The WorkResult data structure received from the worker.
+ */
 WorkResult Master::recv_result(int src) {
     WorkResult wr;
     MPI_Recv(&wr, sizeof(WorkResult), MPI_BYTE, src, TAG_RESULT, MPI_COMM_WORLD,
@@ -31,8 +55,16 @@ WorkResult Master::recv_result(int src) {
 }
 
 // ── Key-space splitter ────────────────────────────────────────────────────────
-// Divide [start, end) into `n` roughly equal chunks (operating on lower 64 bits
-// with fixed upper 64 bits for simplicity; master iterates upper bits outer).
+/**
+ * @brief Divides a 128-bit key range into smaller chunks.
+ * 
+ * Currently performs partitioning based on the lower 64 bits of the key.
+ * 
+ * @param start The starting key of the total range.
+ * @param end The ending key of the total range.
+ * @param n The number of chunks to create.
+ * @param chunks Vector to store the resulting (start, end) key pairs for each chunk.
+ */
 static void split_range(
     const Key128& start, const Key128& end,
     int n,
@@ -57,6 +89,18 @@ static void split_range(
 }
 
 // ── Run ───────────────────────────────────────────────────────────────────────
+/**
+ * @brief Executes the master coordination loop.
+ * 
+ * Partitions the key space, dispatches work to all workers, and collects 
+ * their results.
+ * 
+ * @param plaintext Known plaintext block.
+ * @param ciphertext Target ciphertext block.
+ * @param key_start Starting key for the search.
+ * @param key_end Ending key for the search.
+ * @return A WorkResult object containing the found key, if any.
+ */
 WorkResult Master::run(
     const Block128& plaintext,
     const Block128& ciphertext,

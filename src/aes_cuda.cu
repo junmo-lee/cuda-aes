@@ -67,6 +67,15 @@ static u32 h_RCON[RCON_SIZE];
 static bool g_tables_ready = false;
 
 // ── GF(2^8) helpers (host, used to build tables) ─────────────────────────────
+/**
+ * @brief Performs multiplication in the Galois Field GF(2^8).
+ * 
+ * Used for building AES T-tables on the host.
+ * 
+ * @param a First operand.
+ * @param b Second operand.
+ * @return The result of (a * b) in GF(2^8).
+ */
 static u8 h_gmul(u8 a, u8 b) {
     u8 p = 0;
     while (b) {
@@ -98,6 +107,9 @@ static const u8 SBOX[256] = {
     0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16,
 };
 
+/**
+ * @brief Precomputes AES T-tables and RCON on the host.
+ */
 static void build_tables() {
     // T0[i] = (s2<<24)|(s<<16)|(s<<8)|s3   where s=SBOX[i], s2=gmul(2,s), s3=gmul(3,s)
     for (int i = 0; i < 256; i++) {
@@ -120,19 +132,33 @@ static void build_tables() {
 }
 
 // ── Device helper ─────────────────────────────────────────────────────────────
+/**
+ * @brief Wrapper for the __byte_perm intrinsic.
+ * 
+ * @param x Input 32-bit word.
+ * @param sel Selector for byte permutation.
+ * @return Permuted 32-bit word.
+ */
 __device__ __forceinline__ u32 ars_byte_perm(u32 x, u32 sel) {
     return __byte_perm(x, x, sel);
 }
 
 // ── Main kernel ───────────────────────────────────────────────────────────────
-//
-// Each thread handles `range` consecutive keys, starting from the offset
-//   threadRangeStart = (u64)globalThreadIndex * range.
-// Keys are formed as (rk0_fix, rk1_fix, rk2, rk3) where rk2:rk3 is the
-// 64-bit counter starting at (rk2_base + threadRangeStart/2^32,
-//                              rk3_base + threadRangeStart%2^32).
-// rk0_fix and rk1_fix are fixed for this GPU batch (set by the host).
-//
+/**
+ * @brief Standard CUDA AES-128 brute-force kernel.
+ * 
+ * Each thread tests a range of consecutive keys.
+ * 
+ * @param pt Plaintext block (4x32-bit words).
+ * @param ct Target ciphertext block (4x32-bit words).
+ * @param rk0_fix Upper 32 bits of the 128-bit key (fixed for this launch).
+ * @param rk1_fix Second 32 bits of the 128-bit key (fixed for this launch).
+ * @param rk2_base Starting value for the third 32-bit word of the key.
+ * @param rk3_base Starting value for the fourth 32-bit word of the key.
+ * @param range Number of keys to test per thread.
+ * @param d_found Device pointer to an integer flag (1 if found).
+ * @param d_found_key Device pointer to store the found key.
+ */
 __global__ void aes128_bruteforce_kernel(
     const u32* __restrict__ pt,          // plaintext  [4]
     const u32* __restrict__ ct,          // ciphertext [4]
@@ -274,6 +300,19 @@ __global__ void aes128_bruteforce_kernel(
 }
 
 // ── Host-side GPU brute-force ─────────────────────────────────────────────────
+/**
+ * @brief Host-side wrapper for standard GPU brute-force search.
+ * 
+ * @param device_id CUDA device index.
+ * @param plaintext Known plaintext.
+ * @param ciphertext Target ciphertext.
+ * @param key_start Starting key.
+ * @param num_keys Number of keys to test.
+ * @param found_key Output parameter for the found key.
+ * @param stop_flag Atomic flag to signal early termination.
+ * @param keys_tried Atomic counter for tracking progress.
+ * @return True if key was found, false otherwise.
+ */
 bool gpu_bruteforce(
     int                device_id,
     const Block128&    plaintext,
@@ -369,6 +408,13 @@ bool gpu_bruteforce(
 }
 
 // ── Benchmark ─────────────────────────────────────────────────────────────────
+/**
+ * @brief Benchmarks the standard GPU AES performance.
+ * 
+ * @param device_id CUDA device index.
+ * @param duration_ms Target duration.
+ * @return Keys per second.
+ */
 double gpu_benchmark(int device_id, int duration_ms) {
     CUDA_CHECK(cudaSetDevice(device_id));
 
@@ -405,6 +451,9 @@ double gpu_benchmark(int device_id, int duration_ms) {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
+/**
+ * @brief Initialises AES T-tables on all available CUDA devices.
+ */
 void aes_cuda_init() {
     if (g_tables_ready) return;
     build_tables();
@@ -423,6 +472,11 @@ void aes_cuda_init() {
     g_tables_ready = true;
 }
 
+/**
+ * @brief Returns the number of available CUDA devices.
+ * 
+ * @return Count of GPUs.
+ */
 int get_gpu_count() {
     int n = 0;
     cudaGetDeviceCount(&n);

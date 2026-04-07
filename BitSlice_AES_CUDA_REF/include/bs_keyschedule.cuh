@@ -2,8 +2,10 @@
 #include <stdint.h>
 #include "bs_sbox.cuh"
 
-// AES-128 round constants (Rcon[1..10] used by key schedule).
-// Kept as a device-local inline table to avoid constexpr linkage issues.
+/**
+ * @brief AES-128 round constants (Rcon[1..10] used by key schedule).
+ * Kept as a device-local inline table to avoid constexpr linkage issues.
+ */
 __device__ __constant__ uint8_t BS_KS_RCON[11] = {
     0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36
 };
@@ -17,15 +19,15 @@ __device__ __constant__ uint8_t BS_KS_RCON[11] = {
 // =============================================================================
 
 
-// -----------------------------------------------------------------------------
-// bs_ks_init_from_counter
-//
-// Build bitsliced round-key-0 from 32 consecutive 128-bit keys.
-// Lane j encrypts with key = base + j  (128-bit big-endian addition).
-//
-// base[0..3] : big-endian words (base[0] = MSW, base[3] = LSW).
-// rk[0..127] : output – 128 bitsliced slices.
-// -----------------------------------------------------------------------------
+/**
+ * @brief Build bitsliced round-key-0 from 32 consecutive 128-bit keys.
+ * 
+ * Lane j encrypts with key = base + j  (128-bit big-endian addition).
+ * 
+ * @param rk [out] 128 bitsliced slices (round key 0).
+ * @param base [in] 128-bit base key as 4 big-endian 32-bit words (base[0] = MSW, base[3] = LSW).
+ * @return void
+ */
 __device__ __forceinline__ void bs_ks_init_from_counter(
         uint32_t rk[128],
         const uint32_t base[4])
@@ -62,22 +64,25 @@ __device__ __forceinline__ void bs_ks_init_from_counter(
 }
 
 
-// -----------------------------------------------------------------------------
-// bs_ks_expand_inplace
-//
-// Expand bitsliced round key in-place:  rk[] = RK_{rnd-1}  →  RK_{rnd}.
-// rnd must be in [1, 10].
-//
-// AES-128 key schedule (per round):
-//   temp    = SubWord(RotWord(W3)) XOR Rcon[rnd]
-//   new_W0  = W0 XOR temp
-//   new_W1  = W1 XOR new_W0
-//   new_W2  = W2 XOR new_W1
-//   new_W3  = W3 XOR new_W2
-//
-// In the bitsliced layout W0 occupies rk[0..31], W1 rk[32..63],
-// W2 rk[64..95], W3 rk[96..127].
-// -----------------------------------------------------------------------------
+/**
+ * @brief Expand bitsliced round key in-place: rk[] = RK_{rnd-1} -> RK_{rnd}.
+ * 
+ * rnd must be in [1, 10].
+ * 
+ * AES-128 key schedule (per round):
+ *   temp    = SubWord(RotWord(W3)) XOR Rcon[rnd]
+ *   new_W0  = W0 XOR temp
+ *   new_W1  = W1 XOR new_W0
+ *   new_W2  = W2 XOR new_W1
+ *   new_W3  = W3 XOR new_W2
+ * 
+ * In the bitsliced layout W0 occupies rk[0..31], W1 rk[32..63],
+ * W2 rk[64..95], W3 rk[96..127].
+ * 
+ * @param rk [in,out] The 128-slice bitsliced round key state.
+ * @param rnd [in] The current round number (1-10).
+ * @return void
+ */
 __device__ __forceinline__ void bs_ks_expand_inplace(uint32_t rk[128], int rnd)
 {
     // ── Step 1: RotWord(W3) ─────────────────────────────────────────────

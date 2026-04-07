@@ -1,8 +1,47 @@
 #pragma once
 #include <stdint.h>
-
 #include <stdio.h>
 
+/**
+ * @brief Helper function to debug a single column (4 bytes) of the bitsliced state.
+ * 
+ * Extracts the value for lane 0 and prints it.
+ * 
+ * @param label A label to identify the debug output.
+ * @param r0 bit-slice 0 of the column.
+ * @param r1 bit-slice 1 of the column.
+ * @param r2 bit-slice 2 of the column.
+ * @param r3 bit-slice 3 of the column.
+ * @param r4 bit-slice 4 of the column.
+ * @param r5 bit-slice 5 of the column.
+ * @param r6 bit-slice 6 of the column.
+ * @param r7 bit-slice 7 of the column.
+ * @param r8 bit-slice 8 of the column.
+ * @param r9 bit-slice 9 of the column.
+ * @param r10 bit-slice 10 of the column.
+ * @param r11 bit-slice 11 of the column.
+ * @param r12 bit-slice 12 of the column.
+ * @param r13 bit-slice 13 of the column.
+ * @param r14 bit-slice 14 of the column.
+ * @param r15 bit-slice 15 of the column.
+ * @param r16 bit-slice 16 of the column.
+ * @param r17 bit-slice 17 of the column.
+ * @param r18 bit-slice 18 of the column.
+ * @param r19 bit-slice 19 of the column.
+ * @param r20 bit-slice 20 of the column.
+ * @param r21 bit-slice 21 of the column.
+ * @param r22 bit-slice 22 of the column.
+ * @param r23 bit-slice 23 of the column.
+ * @param r24 bit-slice 24 of the column.
+ * @param r25 bit-slice 25 of the column.
+ * @param r26 bit-slice 26 of the column.
+ * @param r27 bit-slice 27 of the column.
+ * @param r28 bit-slice 28 of the column.
+ * @param r29 bit-slice 29 of the column.
+ * @param r30 bit-slice 30 of the column.
+ * @param r31 bit-slice 31 of the column.
+ * @return void
+ */
 __device__ __forceinline__ void bs_debug_col(const char* label,
     uint32_t r0, uint32_t r1, uint32_t r2, uint32_t r3,
     uint32_t r4, uint32_t r5, uint32_t r6, uint32_t r7,
@@ -15,17 +54,7 @@ __device__ __forceinline__ void bs_debug_col(const char* label,
 {
     // Lane 0만 출력
     uint8_t b[4] = {0,0,0,0};
-    uint32_t* rs = &r0; // 주의: 레지스터 주소 접근은 위험할 수 있으나 r0~r31이 연속적이라고 가정하거나 수동 루프
     // 안전하게 수동으로 하나씩 복원
-    #define GET_BYTE(idx, start_reg) \
-        { uint8_t val=0; \
-          if (r##idx & 1) val |= 1; if (r##(idx+1) & 1) val |= 2; \
-          if (r##(idx+2) & 1) val |= 4; if (r##(idx+3) & 1) val |= 8; \
-          if (r##(idx+4) & 1) val |= 16; if (r##(idx+5) & 1) val |= 32; \
-          if (r##(idx+6) & 1) val |= 64; if (r##(idx+7) & 1) val |= 128; \
-          b[idx/8] = val; }
-
-    // 매크로를 쓸 수 없으므로 (r##idx 문법) 수동으로 작성
     { uint8_t v=0; if(r0&1)v|=1; if(r1&1)v|=2; if(r2&1)v|=4; if(r3&1)v|=8; if(r4&1)v|=16; if(r5&1)v|=32; if(r6&1)v|=64; if(r7&1)v|=128; b[0]=v; }
     { uint8_t v=0; if(r8&1)v|=1; if(r9&1)v|=2; if(r10&1)v|=4; if(r11&1)v|=8; if(r12&1)v|=16; if(r13&1)v|=32; if(r14&1)v|=64; if(r15&1)v|=128; b[1]=v; }
     { uint8_t v=0; if(r16&1)v|=1; if(r17&1)v|=2; if(r18&1)v|=4; if(r19&1)v|=8; if(r20&1)v|=16; if(r21&1)v|=32; if(r22&1)v|=64; if(r23&1)v|=128; b[2]=v; }
@@ -34,6 +63,46 @@ __device__ __forceinline__ void bs_debug_col(const char* label,
     printf("    [DEBUG_MC] %-10s: %02x %02x %02x %02x\n", label, b[0], b[1], b[2], b[3]);
 }
 
+/**
+ * @brief Core bitsliced MixColumns implementation for a single column.
+ * 
+ * Performs the MixColumns transformation on 4 bytes (32 slices) in-place.
+ * 
+ * @param r0 bit-slice 0 of the column.
+ * @param r1 bit-slice 1 of the column.
+ * @param r2 bit-slice 2 of the column.
+ * @param r3 bit-slice 3 of the column.
+ * @param r4 bit-slice 4 of the column.
+ * @param r5 bit-slice 5 of the column.
+ * @param r6 bit-slice 6 of the column.
+ * @param r7 bit-slice 7 of the column.
+ * @param r8 bit-slice 8 of the column.
+ * @param r9 bit-slice 9 of the column.
+ * @param r10 bit-slice 10 of the column.
+ * @param r11 bit-slice 11 of the column.
+ * @param r12 bit-slice 12 of the column.
+ * @param r13 bit-slice 13 of the column.
+ * @param r14 bit-slice 14 of the column.
+ * @param r15 bit-slice 15 of the column.
+ * @param r16 bit-slice 16 of the column.
+ * @param r17 bit-slice 17 of the column.
+ * @param r18 bit-slice 18 of the column.
+ * @param r19 bit-slice 19 of the column.
+ * @param r20 bit-slice 20 of the column.
+ * @param r21 bit-slice 21 of the column.
+ * @param r22 bit-slice 22 of the column.
+ * @param r23 bit-slice 23 of the column.
+ * @param r24 bit-slice 24 of the column.
+ * @param r25 bit-slice 25 of the column.
+ * @param r26 bit-slice 26 of the column.
+ * @param r27 bit-slice 27 of the column.
+ * @param r28 bit-slice 28 of the column.
+ * @param r29 bit-slice 29 of the column.
+ * @param r30 bit-slice 30 of the column.
+ * @param r31 bit-slice 31 of the column.
+ * @param do_print [in] Whether to print debug information (default: false).
+ * @return void
+ */
 __device__ __forceinline__ void bs_mixcl(
     uint32_t &r0,  uint32_t &r1,  uint32_t &r2,  uint32_t &r3,
     uint32_t &r4,  uint32_t &r5,  uint32_t &r6,  uint32_t &r7,
@@ -113,7 +182,17 @@ __device__ __forceinline__ void bs_mixcl(
     r24=o24; r25=o25; r26=o26; r27=o27; r28=o28; r29=o29; r30=o30; r31=o31;
 }
 
-// Map 4 byte indices (each contributes 8 slices) to bs_mixcl parameters
+/**
+ * @brief Maps 4 byte indices to bs_mixcl parameters and applies MixColumns.
+ * 
+ * @tparam B0 The index of the first byte in the bitsliced state (0-15).
+ * @tparam B1 The index of the second byte in the bitsliced state (0-15).
+ * @tparam B2 The index of the third byte in the bitsliced state (0-15).
+ * @tparam B3 The index of the fourth byte in the bitsliced state (0-15).
+ * @param r [in,out] The 128-slice bitsliced state.
+ * @param do_print [in] Whether to print debug information (default: false).
+ * @return void
+ */
 template<int B0, int B1, int B2, int B3>
 __device__ __forceinline__ void apply_mixcol(uint32_t (&r)[128], bool do_print = false) {
     constexpr int a = B0*8, b = B1*8, c = B2*8, d = B3*8;
@@ -127,8 +206,20 @@ __device__ __forceinline__ void apply_mixcol(uint32_t (&r)[128], bool do_print =
 }
 
 
-// Gather SR column <S0,S1,S2,S3> into 32 locals, run bs_mixcl, scatter into
-// contiguous dest bytes starting at DBASE (DBASE, DBASE+1, DBASE+2, DBASE+3).
+/**
+ * @brief Fused ShiftRows and MixColumns optimization.
+ * 
+ * Gathers bitsliced slices from specified indices (ShiftRows pattern),
+ * applies MixColumns, and scatters back into contiguous destination bytes.
+ * 
+ * @tparam S0 First source byte index.
+ * @tparam S1 Second source byte index.
+ * @tparam S2 Third source byte index.
+ * @tparam S3 Fourth source byte index.
+ * @tparam DBASE Destination base byte index (DBASE, DBASE+1, DBASE+2, DBASE+3).
+ * @param r [in,out] The 128-slice bitsliced state.
+ * @return void
+ */
 template<int S0, int S1, int S2, int S3, int DBASE>
 __device__ __forceinline__ void mc_sr_fused(uint32_t (&r)[128]) {
     // 32 locals (one column = 4 bytes × 8 slices)
@@ -162,4 +253,3 @@ __device__ __forceinline__ void mc_sr_fused(uint32_t (&r)[128]) {
     r[(DBASE+3)*8+0]=x24; r[(DBASE+3)*8+1]=x25; r[(DBASE+3)*8+2]=x26; r[(DBASE+3)*8+3]=x27;
     r[(DBASE+3)*8+4]=x28; r[(DBASE+3)*8+5]=x29; r[(DBASE+3)*8+6]=x30; r[(DBASE+3)*8+7]=x31;
 }
-

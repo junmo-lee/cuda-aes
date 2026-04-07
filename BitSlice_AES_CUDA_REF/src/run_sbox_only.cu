@@ -7,16 +7,31 @@
 
 __global__ void aes_bs_sbox_only(const uint32_t*, uint32_t*, unsigned long long);
 
+/**
+ * @brief Reads the entire content of a file into a byte vector.
+ * 
+ * @param path The path to the file to read.
+ * @param buf [out] The vector to store the file content.
+ * @return true if reading is successful, false otherwise.
+ */
 static bool read_all(const std::string& path, std::vector<uint8_t>& buf) {
     std::ifstream f(path, std::ios::binary);
     if (!f) return false;
     f.seekg(0, std::ios::end);
     size_t sz = (size_t)f.tellg();
-    f.seekg(0, std::ios::beg);
+    f.seekg(0, std::beg);
     buf.resize(sz);
     f.read((char*)buf.data(), sz);
     return f.good();
 }
+
+/**
+ * @brief Writes the entire content of a byte vector to a file.
+ * 
+ * @param path The path to the file to write.
+ * @param buf The vector containing the data to write.
+ * @return true if writing is successful, false otherwise.
+ */
 static bool write_all(const std::string& path, const std::vector<uint8_t>& buf) {
     std::ofstream f(path, std::ios::binary | std::ios::trunc);
     if (!f) return false;

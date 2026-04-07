@@ -3,13 +3,30 @@
 #include "utils.h"
 #include <atomic>
 
-// Initialise lookup tables (call once per process before any GPU work).
+/**
+ * @brief Initializes AES lookup tables on the host and potentially the GPU.
+ * 
+ * This function should be called once per process before any GPU-based 
+ * AES operations are performed.
+ */
 void aes_cuda_init();
 
-// Brute-force search over [key_start, key_start + num_keys) on one GPU.
-// stop_flag : shared flag – set to true when any device finds the key.
-// keys_tried: atomic progress counter (keys_tried += processed keys on exit).
-// Returns true and sets found_key when a matching key is discovered.
+/**
+ * @brief Performs AES brute-force search using a standard GPU implementation.
+ * 
+ * Searches for the key in the range [key_start, key_start + num_keys) that 
+ * encrypts the given plaintext to the ciphertext.
+ * 
+ * @param device_id The CUDA device ID to use for the search.
+ * @param plaintext The 128-bit known plaintext.
+ * @param ciphertext The 128-bit target ciphertext.
+ * @param key_start The inclusive starting key of the search range.
+ * @param num_keys The total number of keys to check.
+ * @param found_key [out] The found key (valid only if return is true).
+ * @param stop_flag Atomic flag to signal early termination across all devices.
+ * @param keys_tried [out] Atomic counter for the number of keys processed.
+ * @return true if the key is found, false otherwise.
+ */
 bool gpu_bruteforce(
     int                   device_id,
     const Block128&       plaintext,
@@ -21,8 +38,17 @@ bool gpu_bruteforce(
     std::atomic<u64>&     keys_tried
 );
 
-// Benchmark: returns estimated keys/second for device_id.
+/**
+ * @brief Benchmarks the standard GPU AES-128 performance.
+ * 
+ * @param device_id The CUDA device ID to benchmark.
+ * @param duration_ms The duration of the benchmark in milliseconds.
+ * @return Estimated number of keys checked per second.
+ */
 double gpu_benchmark(int device_id, int duration_ms = 500);
 
-// Number of CUDA devices on this node.
+/**
+ * @brief Gets the number of CUDA-capable devices on the current node.
+ * @return The number of available CUDA devices.
+ */
 int get_gpu_count();
